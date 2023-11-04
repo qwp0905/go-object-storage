@@ -1,0 +1,19 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: object-storage
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.06"
+          memory: 128M
+    environment:
+      PORT: 8080
+    networks: ["proxy"]
+    ports:
+      - protocol: tcp
+        target: 8080
+        published: 8080
