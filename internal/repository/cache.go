@@ -1,99 +1,173 @@
 package repository
 
 import (
-	"errors"
+	"fmt"
 	"strings"
 	"sync"
+	"time"
 )
+
+func compare(a, b string) string {
+	min := len(b)
+	if len(a) < len(b) {
+		min = len(a)
+	}
+
+	out := ""
+	for i := 0; i < min; i++ {
+		if a[i:i+1] != b[i:i+1] {
+			break
+		}
+		out += a[i : i+1]
+	}
+	return out
+}
 
 const separator = "/"
 
 type Metadata struct {
-	source   string
-	fullPath string
+	Pointer   string
+	CreatedAt time.Time
+	Key       string
+	IsDir     bool
 }
 
-type node struct {
-	metadata *Metadata
-	children map[string]*node
+type metadata struct {
+	pointer   string
+	createdAt time.Time
 }
 
-func newNode(meta *Metadata) *node {
-	return &node{
+type cacheNode struct {
+	metadata *metadata
+	label    string
+	children []*cacheNode
+}
+
+func newNode(label string, meta *metadata) *cacheNode {
+	return &cacheNode{
 		metadata: meta,
-		children: make(map[string]*node),
+		label:    label,
+		children: []*cacheNode{},
 	}
 }
 
-func (n *node) isLeaf() bool {
-	return len(n.children) == 0
+func (n *cacheNode) reorder(match string) {
+	if r := strings.TrimPrefix(n.label, match); r != "" {
+		n.label = match
+		nc := newNode(r, n.metadata)
+		nc.children = n.children
+		n.children = []*cacheNode{nc}
+	}
 }
 
-func (n *node) add(keys []string, now int, source string) {
-	if len(keys) == now {
-		n.metadata.source = source
+func (n *cacheNode) add(key string, meta *metadata) {
+	if key == "" || !strings.HasPrefix(key, n.label) {
 		return
 	}
 
-	if _, ok := n.children[keys[now]]; !ok {
-		n.children[keys[now]] = newNode(&Metadata{
-			fullPath: separator + strings.Join(keys[0:now+1], separator),
-		})
+	p := strings.TrimPrefix(key, n.label)
+	for _, c := range n.children {
+		if mat := compare(c.label, p); mat != "" {
+			c.reorder(mat)
+			c.add(p, meta)
+			return
+		}
 	}
 
-	n.children[keys[now]].add(keys, now+1, source)
+	n.children = append(n.children, newNode(p, meta))
 }
 
-func (n *node) search(keys []string) []*Metadata {
-	if n.isLeaf() {
-		return []*Metadata{n.metadata}
-	}
+func (n *cacheNode) isLeaf() bool {
+	return len(n.children) == 0
+}
 
-	if len(keys) == 1 && keys[0] == "" {
+func (n *cacheNode) get(key string) []*Metadata {
+	if key == "" {
+		return []*Metadata{}
+	}
+	if n.label == key {
+		return []*Metadata{
+			{Key: n.label, Pointer: n.metadata.pointer, CreatedAt: n.metadata.createdAt},
+		}
+	}
+	if strings.HasPrefix(n.label, key) {
 		out := []*Metadata{}
 		for _, c := range n.children {
-			out = append(out, c.metadata)
+			out = append(out, &Metadata{
+				Pointer:   c.metadata.pointer,
+				CreatedAt: c.metadata.createdAt,
+				Key:       strings.TrimPrefix(n.label, key) + c.label,
+			})
 		}
 		return out
 	}
 
-	for key, c := range n.children {
-		if key == keys[0] {
-			return c.search(keys[1:])
-		}
+	mat, ok := strings.CutPrefix(key, n.label)
+	if !ok {
+		return []*Metadata{}
 	}
-	return []*Metadata{}
+
+	out := []*Metadata{}
+	for _, c := range n.children {
+		r := c.get(mat)
+		if len(r) == 0 {
+			continue
+		}
+		out = append(out, r...)
+	}
+
+	return out
+}
+
+func (n *cacheNode) Print() {
+	fmt.Println(n.label, len(n.children), n.metadata)
+	for _, c := range n.children {
+		c.Print()
+	}
 }
 
 type Cache struct {
-	nodes  *node
+	nodes  *cacheNode
 	locker *sync.Mutex
 }
 
 func NewCache() *Cache {
 	return &Cache{
-		nodes: newNode(&Metadata{
-			fullPath: separator,
-		}),
+		nodes:  newNode(separator, &metadata{}),
 		locker: new(sync.Mutex),
 	}
 }
 
-func (c *Cache) Set(key string, id string) error {
-	if key[len(key)-1:] == separator {
-		return errors.New("cannot add directory")
+func (c *Cache) Insert(key string, meta *Metadata) {
+	if key[0:1] != separator {
+		key = separator + key
 	}
-	if key[0:1] == separator {
-		key = key[1:]
-	}
-	c.nodes.add(strings.Split(key, separator), 0, id)
-	return nil
+	c.locker.Lock()
+	defer c.locker.Unlock()
+	c.nodes.add(key, &metadata{pointer: meta.Pointer, createdAt: meta.CreatedAt})
 }
 
-func (c *Cache) Get(key string) []*Metadata {
-	if key[0:1] == separator {
-		key = key[1:]
+func (c *Cache) Find(key string) []*Metadata {
+	if key[0:1] != separator {
+		key = separator + key
+	}
+	c.waitLock()
+	r := c.nodes.get(key)
+	out := []*Metadata{}
+	if len(r) == 1 {
+		r[0].Key = key
+		out = append(out, r[0])
+	} else {
+		for _, m := range r {
+			m.Key = key + m.Key
+			out = append(out, m)
+		}
 	}
 
-	return c.nodes.search(strings.Split(key, separator))
+	return out
+}
+
+func (c *Cache) waitLock() {
+	c.locker.Lock()
+	defer c.locker.Unlock()
 }
