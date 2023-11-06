@@ -1,27 +1,17 @@
 package datanode
 
-import "github.com/valyala/fasthttp"
+type DataNode struct{}
 
-type DataNodes struct {
-	nodes  chan *nodeInfo
-	client *fasthttp.Client
+type Metadata struct {
+	Key       string   `json:"key"`
+	Source    string   `json:"source"`
+	Size      string   `json:"size"`
+	Node      string   `json:"node"`
+	NextNodes []string `json:"next_nodes"`
 }
 
-type nodeInfo struct {
-	host  string
-	retry int
+type NextData struct {
+	Key    string `json:"key"`
+	Source string `json:"source"`
+	Node   string `json:"node"`
 }
-
-type NodeInfo struct {
-	Id string `json:"id"`
-}
-
-func NewDataNode(hosts ...string) (*DataNodes, error) {
-	ch := make(chan *nodeInfo)
-	for _, v := range hosts {
-		ch <- &nodeInfo{host: v, retry: 0}
-	}
-	return &DataNodes{nodes: ch, client: &fasthttp.Client{}}, nil
-}
-
-func Request() {}
