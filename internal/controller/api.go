@@ -5,13 +5,13 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/service"
 )
 
-type crudController struct {
+type apiController struct {
 	*controllerImpl
-	svc *service.CRUDService
+	svc *service.ApiService
 }
 
-func NewCRUDController(svc *service.CRUDService) *crudController {
-	c := &crudController{
+func NewApiController(svc *service.ApiService) *apiController {
+	c := &apiController{
 		controllerImpl: New("/api"),
 		svc:            svc,
 	}
@@ -23,7 +23,7 @@ func NewCRUDController(svc *service.CRUDService) *crudController {
 	return c
 }
 
-func (c *crudController) getObject(ctx *fiber.Ctx) error {
+func (c *apiController) getObject(ctx *fiber.Ctx) error {
 	obj, err := c.svc.GetObject(ctx.Path())
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func (c *crudController) getObject(ctx *fiber.Ctx) error {
 	return ctx.SendStream(obj)
 }
 
-func (c *crudController) putObject(ctx *fiber.Ctx) error {
+func (c *apiController) putObject(ctx *fiber.Ctx) error {
 	if err := c.svc.PutObject(ctx.Path(), ctx.Request().BodyStream()); err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (c *crudController) putObject(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).SendString("OK")
 }
 
-func (c *crudController) deleteObject(ctx *fiber.Ctx) error {
+func (c *apiController) deleteObject(ctx *fiber.Ctx) error {
 	if err := c.svc.DeleteObject(ctx.Path()); err != nil {
 		return err
 	}
