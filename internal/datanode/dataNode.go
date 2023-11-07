@@ -9,3 +9,7 @@ type Metadata struct {
 	NodeId    string      `json:"node_id"`
 	NextNodes []*Metadata `json:"next_nodes"`
 }
+
+func (m *Metadata) FileExists() bool {
+	return m.Source != ""
+}
