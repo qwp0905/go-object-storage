@@ -15,6 +15,7 @@ func NewApiController(svc *service.ApiService) *apiController {
 		controllerImpl: New("/api"),
 		svc:            svc,
 	}
+	c.router.Get("/", c.listObject)
 	c.router.Get("/*", c.getObject)
 	c.router.Post("/*", c.putObject)
 	c.router.Put("/*", c.putObject)
@@ -30,6 +31,29 @@ func (c *apiController) getObject(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.SendStream(obj)
+}
+
+type listObjectResponse struct {
+	Key          string `json:"key"`
+	Size         string `json:"size"`
+	LastModified string `json:"last_modified"`
+}
+
+func (c *apiController) listObject(ctx *fiber.Ctx) error {
+	list, err := c.svc.ListObject(ctx.Query("prefix"))
+	if err != nil {
+		return err
+	}
+
+	out := []*listObjectResponse{}
+	for _, meta := range list {
+		out = append(out, &listObjectResponse{
+			Key:  meta.Key,
+			Size: meta.Size,
+		})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(out)
 }
 
 func (c *apiController) putObject(ctx *fiber.Ctx) error {

@@ -3,6 +3,7 @@ package service
 import (
 	"io"
 
+	"github.com/qwp0905/go-object-storage/internal/datanode"
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
 )
 
@@ -15,7 +16,7 @@ func NewApiService(pool *nodepool.NodePool) *ApiService {
 }
 
 func (s *ApiService) GetObject(key string) (io.Reader, error) {
-	metadata, err := s.pool.GetNodeKey(key)
+	metadata, err := s.pool.SearchMetadata(key)
 	if err != nil {
 		return nil, err
 	}
@@ -26,6 +27,10 @@ func (s *ApiService) GetObject(key string) (io.Reader, error) {
 	}
 
 	return r, nil
+}
+
+func (s *ApiService) ListObject(prefix string) ([]*datanode.Metadata, error) {
+	return nil, nil
 }
 
 func (s *ApiService) PutObject(key string, r io.Reader) error {
