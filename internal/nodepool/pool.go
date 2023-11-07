@@ -109,25 +109,7 @@ func (p *NodePool) GetDirect(metadata *datanode.Metadata) (io.Reader, error) {
 }
 
 func (p *NodePool) GetNodeKey(key string) (*datanode.Metadata, error) {
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
-	res := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(res)
-
-	req.Header.SetMethod(fasthttp.MethodGet)
-	req.SetRequestURI(fmt.Sprintf("http://%s/meta/%s", p.root.host, key))
-	res.StreamBody = true
-
-	if err := p.client.Do(req, res); err != nil {
-		return nil, err
-	}
-
-	data := new(datanode.Metadata)
-	if err := json.NewDecoder(res.BodyStream()).Decode(data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return p.getMetadata(key)
 }
 
 func (p *NodePool) getMetadata(key string) (*datanode.Metadata, error) {
