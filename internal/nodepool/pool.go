@@ -1,11 +1,14 @@
 package nodepool
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"sync"
 
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 	"github.com/valyala/fasthttp"
 )
@@ -28,7 +31,7 @@ func (p *NodePool) getNode(id string) *NodeInfo {
 	return p.nodeInfo[id]
 }
 
-func (p *NodePool) getRandomNode() *NodeInfo {
+func (p *NodePool) getNodeToSave() *NodeInfo {
 	i := 0
 	c := p.counter(len(p.nodeInfo))
 	for _, v := range p.nodeInfo {
@@ -77,4 +80,30 @@ func (p *NodePool) SearchMetadata(key string) (*datanode.Metadata, error) {
 		return nil, err
 	}
 	return p.search(key, root)
+}
+
+func (p *NodePool) PutDirect(r io.Reader) (*datanode.Metadata, *datanode.NextRoute, error) {
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	res := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(res)
+
+	node := p.getNodeToSave()
+	req.Header.SetMethod(fasthttp.MethodPut)
+	req.SetRequestURI(fmt.Sprintf("http://%s/data/", node.Host))
+
+	if err := p.client.Do(req, res); err != nil {
+		return nil, nil, err
+	}
+
+	if res.StatusCode() >= 300 {
+		return nil, nil, errors.Errorf("%s", string(res.Body()))
+	}
+
+	data := new(datanode.Metadata)
+	if err := json.NewDecoder(bytes.NewBuffer(res.Body())).Decode(data); err != nil {
+		return nil, nil, err
+	}
+
+	return data, &datanode.NextRoute{NodeId: node.Id}, nil
 }

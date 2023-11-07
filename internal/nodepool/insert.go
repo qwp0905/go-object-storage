@@ -18,7 +18,7 @@ func compare(a, b string) string {
 	return out
 }
 
-func (p *NodePool) reorderMetadata(current, saved *datanode.Metadata) error {
+func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved *datanode.NextRoute) error {
 	for _, next := range current.NextNodes {
 		matched := compare(next.Key, saved.Key)
 		if len(matched) <= len(saved.Key) {
@@ -37,11 +37,11 @@ func (p *NodePool) reorderMetadata(current, saved *datanode.Metadata) error {
 				NodeId:    nextMeta.NodeId,
 				NextNodes: nextMeta.NextNodes,
 			}
-			r := p.getRandomNode()
+			r := p.getNodeToSave()
 			if err := p.putMetadata(r.Host, matched, newChild); err != nil {
 				return err
 			}
-			nextMeta.NextNodes = []*datanode.Metadata{{
+			nextMeta.NextNodes = []*datanode.NextRoute{{
 				NodeId: r.Id,
 				Key:    matched,
 			}}
@@ -49,9 +49,9 @@ func (p *NodePool) reorderMetadata(current, saved *datanode.Metadata) error {
 				return err
 			}
 		}
-		return p.reorderMetadata(nextMeta, saved)
+		return p.reorderMetadata(next.NodeId, nextMeta, saved)
 	}
 
 	current.NextNodes = append(current.NextNodes, saved)
-	return p.putMetadata("?", current.Key, current)
+	return p.putMetadata(id, current.Key, current)
 }
