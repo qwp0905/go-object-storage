@@ -16,7 +16,6 @@ var (
 )
 
 func init() {
-
 	flag.StringVar(&rootKey, "root", "/", "root metadata key")
 	flag.UintVar(&addr, "addr", 8080, "application addr")
 

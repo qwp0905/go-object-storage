@@ -3,15 +3,14 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
-	"github.com/qwp0905/go-object-storage/internal/filesystem"
 )
 
 type meta struct {
 	*controllerImpl
-	svc *filesystem.FileSystem
+	svc *datanode.DataNode
 }
 
-func NewMeta(svc *filesystem.FileSystem) *meta {
+func NewMeta(svc *datanode.DataNode) *meta {
 	controller := &meta{
 		controllerImpl: New("/meta"),
 		svc:            svc,
