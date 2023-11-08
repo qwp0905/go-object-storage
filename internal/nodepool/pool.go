@@ -4,10 +4,12 @@ import (
 	"sync"
 
 	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/valyala/fasthttp"
 )
 
 type NodePool struct {
+	noCopy   nocopy.NoCopy
 	client   *fasthttp.Client
 	nodeInfo map[string]*NodeInfo
 	root     *NodeInfo
