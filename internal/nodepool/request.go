@@ -34,14 +34,14 @@ func (p *NodePool) getMetadata(host string, key string) (*datanode.Metadata, err
 	return data, nil
 }
 
-func (p *NodePool) putMetadata(host, key string, metadata *datanode.Metadata) error {
+func (p *NodePool) putMetadata(host string, metadata *datanode.Metadata) error {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodPut)
-	req.SetRequestURI(fmt.Sprintf("http://%s/meta/%s", host, key))
+	req.SetRequestURI(fmt.Sprintf("http://%s/meta/%s", host, metadata.Key))
 
 	if err := json.NewEncoder(req.BodyWriter()).Encode(metadata); err != nil {
 		return err
@@ -75,6 +75,27 @@ func (p *NodePool) headMetadata(host string, key string) (*fasthttp.ResponseHead
 	return &res.Header, nil
 }
 
+func (p *NodePool) deleteMetadata(host string, key string) error {
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	res := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(res)
+
+	req.Header.SetMethod(fasthttp.MethodDelete)
+	req.SetRequestURI(fmt.Sprintf("http://%s/meta/%s", host, key))
+	res.StreamBody = true
+
+	if err := p.client.Do(req, res); err != nil {
+		return err
+	}
+
+	if res.StatusCode() >= 300 {
+		return errors.Errorf("%s", string(res.Body()))
+	}
+
+	return nil
+}
+
 func counter() func(int) int {
 	i := int32(0)
 	return func(max int) int {
@@ -86,7 +107,7 @@ func counter() func(int) int {
 	}
 }
 
-func (p *NodePool) putDirect(r io.Reader) (string, error) {
+func (p *NodePool) putDirect(r io.Reader) (*datanode.Metadata, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
@@ -97,19 +118,19 @@ func (p *NodePool) putDirect(r io.Reader) (string, error) {
 	req.SetRequestURI(fmt.Sprintf("http://%s/data/", node.Host))
 
 	if err := p.client.Do(req, res); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if res.StatusCode() >= 300 {
-		return "", errors.Errorf("%s", string(res.Body()))
+		return nil, errors.Errorf("%s", string(res.Body()))
 	}
 
 	data := new(datanode.Metadata)
 	if err := json.NewDecoder(bytes.NewBuffer(res.Body())).Decode(data); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return node.Id, nil
+	return data, nil
 }
 
 func (p *NodePool) getDirect(metadata *datanode.Metadata) (io.Reader, error) {
@@ -121,7 +142,7 @@ func (p *NodePool) getDirect(metadata *datanode.Metadata) (io.Reader, error) {
 	req.Header.SetMethod(fasthttp.MethodGet)
 	req.SetRequestURI(fmt.Sprintf(
 		"http://%s/data/%s",
-		p.getNode(metadata.NodeId).Host,
+		p.getNodeHost(metadata.NodeId),
 		metadata.Source,
 	))
 	res.StreamBody = true
@@ -142,7 +163,7 @@ func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
 	req.Header.SetMethod(fasthttp.MethodDelete)
 	req.SetRequestURI(fmt.Sprintf(
 		"http://%s/data/%s",
-		p.getNode(metadata.NodeId).Host,
+		p.getNodeHost(metadata.NodeId),
 		metadata.Source,
 	))
 	res.StreamBody = true

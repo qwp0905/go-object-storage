@@ -3,6 +3,7 @@ package nodepool
 import (
 	"io"
 
+	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
@@ -29,7 +30,7 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 			continue
 		}
 
-		nextMeta, err := p.getMetadata(p.getNode(next.NodeId).Host, next.Key)
+		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), next.Key)
 		if err != nil {
 			return err
 		}
@@ -41,15 +42,16 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 				NodeId:    nextMeta.NodeId,
 				NextNodes: nextMeta.NextNodes,
 			}
+
 			r := p.getNodeToSave()
-			if err := p.putMetadata(r.Host, matched, newChild); err != nil {
+			if err := p.putMetadata(r.Host, newChild); err != nil {
 				return err
 			}
 			nextMeta.NextNodes = []*datanode.NextRoute{{
 				NodeId: r.Id,
 				Key:    matched,
 			}}
-			if err := p.putMetadata(p.getNode(next.NodeId).Host, next.NodeId, nextMeta); err != nil {
+			if err := p.putMetadata(p.getNodeHost(next.NodeId), nextMeta); err != nil {
 				return err
 			}
 		}
@@ -57,12 +59,22 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 	}
 
 	current.NextNodes = append(current.NextNodes, saved)
-	return p.putMetadata(id, current.Key, current)
+	return p.putMetadata(p.getNodeHost(id), current)
 }
 
 func (p *NodePool) PutObject(key string, r io.Reader) error {
-	nodeId, err := p.putDirect(r)
+	if len(p.nodeInfo) == 0 {
+		return errors.New("no host registered...")
+	}
+
+	metadata, err := p.putDirect(r)
 	if err != nil {
+		return err
+	}
+
+	metadata.Key = key
+	next := p.getNodeToSave()
+	if err := p.putMetadata(next.Host, metadata); err != nil {
 		return err
 	}
 
@@ -71,5 +83,9 @@ func (p *NodePool) PutObject(key string, r io.Reader) error {
 		return err
 	}
 
-	return p.reorderMetadata(p.root.Id, root, &datanode.NextRoute{NodeId: nodeId, Key: key})
+	return p.reorderMetadata(
+		p.root.Id,
+		root,
+		&datanode.NextRoute{NodeId: next.Id, Key: key},
+	)
 }

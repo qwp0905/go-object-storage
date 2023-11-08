@@ -5,7 +5,7 @@ type DataNode struct{}
 type Metadata struct {
 	Key       string       `json:"key"`
 	Source    string       `json:"source"`
-	Size      string       `json:"size"`
+	Size      uint         `json:"size"`
 	NodeId    string       `json:"node_id"`
 	NextNodes []*NextRoute `json:"next_nodes"`
 }

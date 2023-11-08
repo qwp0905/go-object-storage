@@ -1,11 +1,11 @@
-package application
+package http
 
 import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
-	"github.com/qwp0905/go-object-storage/internal/controller"
+	"github.com/qwp0905/go-object-storage/api"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 )
 
@@ -13,7 +13,7 @@ type Application struct {
 	source *fiber.App
 }
 
-func New(controllers ...controller.Controller) *Application {
+func NewApplication(controllers ...api.Controller) *Application {
 	source := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError

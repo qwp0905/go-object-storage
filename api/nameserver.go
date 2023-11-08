@@ -35,7 +35,7 @@ func (c *nameserver) getObject(ctx *fiber.Ctx) error {
 
 type listObjectResponse struct {
 	Key          string `json:"key"`
-	Size         string `json:"size"`
+	Size         uint   `json:"size"`
 	LastModified string `json:"last_modified"`
 }
 

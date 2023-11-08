@@ -21,8 +21,8 @@ type NodeInfo struct {
 	Host string `json:"host"`
 }
 
-func (p *NodePool) getNode(id string) *NodeInfo {
-	return p.nodeInfo[id]
+func (p *NodePool) getNodeHost(id string) string {
+	return p.nodeInfo[id].Host
 }
 
 func (p *NodePool) getNodeToSave() *NodeInfo {
@@ -48,5 +48,15 @@ func NewNodePool(key string) *NodePool {
 }
 
 func (p *NodePool) getRootMetadata() (*datanode.Metadata, error) {
+	if p.root == nil {
+		root := p.getNodeToSave()
+		if err := p.putMetadata(root.Host, &datanode.Metadata{
+			Key:       p.rootKey,
+			NextNodes: []*datanode.NextRoute{},
+		}); err != nil {
+			return nil, err
+		}
+		p.root = root
+	}
 	return p.getMetadata(p.root.Host, p.rootKey)
 }

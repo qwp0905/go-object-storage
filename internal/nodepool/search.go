@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
-func (p *NodePool) search(key string, metadata *datanode.Metadata) (*datanode.Metadata, error) {
+func (p *NodePool) search(id, key string, metadata *datanode.Metadata) (string, *datanode.Metadata, error) {
 	if key == metadata.Key && metadata.FileExists() {
-		return metadata, nil
+		return id, metadata, nil
 	}
 
 	for _, next := range metadata.NextNodes {
@@ -18,14 +19,14 @@ func (p *NodePool) search(key string, metadata *datanode.Metadata) (*datanode.Me
 			continue
 		}
 
-		nextMeta, err := p.getMetadata(p.getNode(next.NodeId).Host, key)
+		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), key)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
-		return p.search(key, nextMeta)
+		return p.search(next.NodeId, key, nextMeta)
 	}
 
-	return nil, fiber.ErrNotFound
+	return "", nil, fiber.ErrNotFound
 }
 
 func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datanode.Metadata, error) {
@@ -39,7 +40,7 @@ func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datan
 			continue
 		}
 
-		nextMeta, err := p.getMetadata(p.getNode(next.NodeId).Host, key)
+		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), key)
 		if err != nil {
 			return nil, err
 		}
@@ -54,12 +55,16 @@ func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datan
 }
 
 func (p *NodePool) GetObject(key string) (io.Reader, error) {
+	if len(p.nodeInfo) == 0 {
+		return nil, errors.New("no host registered...")
+	}
+
 	root, err := p.getRootMetadata()
 	if err != nil {
 		return nil, err
 	}
 
-	metadata, err := p.search(key, root)
+	_, metadata, err := p.search(p.root.Id, key, root)
 	if err != nil {
 		return nil, err
 	}
@@ -68,23 +73,13 @@ func (p *NodePool) GetObject(key string) (io.Reader, error) {
 }
 
 func (p *NodePool) ListObject(prefix string) ([]*datanode.Metadata, error) {
+	if len(p.nodeInfo) == 0 {
+		return nil, errors.New("no host registered...")
+	}
+
 	root, err := p.getRootMetadata()
 	if err != nil {
 		return nil, err
 	}
 	return p.listSearch(prefix, root)
-}
-
-func (p *NodePool) DeleteObject(key string) error {
-	root, err := p.getRootMetadata()
-	if err != nil {
-		return err
-	}
-
-	metadata, err := p.search(key, root)
-	if err != nil {
-		return err
-	}
-
-	return p.deleteDirect(metadata)
 }
