@@ -1,6 +1,10 @@
 package nodepool
 
-import "github.com/qwp0905/go-object-storage/internal/datanode"
+import (
+	"io"
+
+	"github.com/qwp0905/go-object-storage/internal/datanode"
+)
 
 func compare(a, b string) string {
 	min := len(b)
@@ -54,4 +58,18 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 
 	current.NextNodes = append(current.NextNodes, saved)
 	return p.putMetadata(id, current.Key, current)
+}
+
+func (p *NodePool) PutObject(key string, r io.Reader) error {
+	nodeId, err := p.putDirect(r)
+	if err != nil {
+		return err
+	}
+
+	root, err := p.getRootMetadata()
+	if err != nil {
+		return err
+	}
+
+	return p.reorderMetadata(p.root.Id, root, &datanode.NextRoute{NodeId: nodeId, Key: key})
 }

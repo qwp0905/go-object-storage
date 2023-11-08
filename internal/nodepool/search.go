@@ -1,6 +1,7 @@
 package nodepool
 
 import (
+	"io"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -50,4 +51,40 @@ func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datan
 	}
 
 	return out, nil
+}
+
+func (p *NodePool) GetObject(key string) (io.Reader, error) {
+	root, err := p.getRootMetadata()
+	if err != nil {
+		return nil, err
+	}
+
+	metadata, err := p.search(key, root)
+	if err != nil {
+		return nil, err
+	}
+
+	return p.getDirect(metadata)
+}
+
+func (p *NodePool) ListObject(prefix string) ([]*datanode.Metadata, error) {
+	root, err := p.getRootMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return p.listSearch(prefix, root)
+}
+
+func (p *NodePool) DeleteObject(key string) error {
+	root, err := p.getRootMetadata()
+	if err != nil {
+		return err
+	}
+
+	metadata, err := p.search(key, root)
+	if err != nil {
+		return err
+	}
+
+	return p.deleteDirect(metadata)
 }

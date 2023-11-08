@@ -1,8 +1,10 @@
 package nodepool
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync/atomic"
 
 	"github.com/pkg/errors"
@@ -82,4 +84,76 @@ func counter() func(int) int {
 		}
 		return int(i)
 	}
+}
+
+func (p *NodePool) putDirect(r io.Reader) (string, error) {
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	res := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(res)
+
+	node := p.getNodeToSave()
+	req.Header.SetMethod(fasthttp.MethodPut)
+	req.SetRequestURI(fmt.Sprintf("http://%s/data/", node.Host))
+
+	if err := p.client.Do(req, res); err != nil {
+		return "", err
+	}
+
+	if res.StatusCode() >= 300 {
+		return "", errors.Errorf("%s", string(res.Body()))
+	}
+
+	data := new(datanode.Metadata)
+	if err := json.NewDecoder(bytes.NewBuffer(res.Body())).Decode(data); err != nil {
+		return "", err
+	}
+
+	return node.Id, nil
+}
+
+func (p *NodePool) getDirect(metadata *datanode.Metadata) (io.Reader, error) {
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	res := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(res)
+
+	req.Header.SetMethod(fasthttp.MethodGet)
+	req.SetRequestURI(fmt.Sprintf(
+		"http://%s/data/%s",
+		p.getNode(metadata.NodeId).Host,
+		metadata.Source,
+	))
+	res.StreamBody = true
+
+	if err := p.client.Do(req, res); err != nil {
+		return nil, err
+	}
+
+	return res.BodyStream(), nil
+}
+
+func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	res := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(res)
+
+	req.Header.SetMethod(fasthttp.MethodDelete)
+	req.SetRequestURI(fmt.Sprintf(
+		"http://%s/data/%s",
+		p.getNode(metadata.NodeId).Host,
+		metadata.Source,
+	))
+	res.StreamBody = true
+
+	if err := p.client.Do(req, res); err != nil {
+		return err
+	}
+
+	if res.StatusCode() >= 300 {
+		return errors.Errorf("%s", string(res.Body()))
+	}
+
+	return nil
 }

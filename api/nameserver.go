@@ -1,17 +1,17 @@
-package controller
+package api
 
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
 )
 
-type api struct {
+type nameserver struct {
 	*controllerImpl
 	svc *nodepool.NodePool
 }
 
-func NewApi(svc *nodepool.NodePool) *api {
-	c := &api{
+func NewNameServer(svc *nodepool.NodePool) *nameserver {
+	c := &nameserver{
 		controllerImpl: New("/api"),
 		svc:            svc,
 	}
@@ -24,7 +24,7 @@ func NewApi(svc *nodepool.NodePool) *api {
 	return c
 }
 
-func (c *api) getObject(ctx *fiber.Ctx) error {
+func (c *nameserver) getObject(ctx *fiber.Ctx) error {
 	obj, err := c.svc.GetObject(ctx.Path())
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ type listObjectResponse struct {
 	LastModified string `json:"last_modified"`
 }
 
-func (c *api) listObject(ctx *fiber.Ctx) error {
+func (c *nameserver) listObject(ctx *fiber.Ctx) error {
 	list, err := c.svc.ListObject(ctx.Query("prefix"))
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func (c *api) listObject(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(out)
 }
 
-func (c *api) putObject(ctx *fiber.Ctx) error {
+func (c *nameserver) putObject(ctx *fiber.Ctx) error {
 	if err := c.svc.PutObject(ctx.Path(), ctx.Request().BodyStream()); err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (c *api) putObject(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).SendString("OK")
 }
 
-func (c *api) deleteObject(ctx *fiber.Ctx) error {
+func (c *nameserver) deleteObject(ctx *fiber.Ctx) error {
 	if err := c.svc.DeleteObject(ctx.Path()); err != nil {
 		return err
 	}
