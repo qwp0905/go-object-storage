@@ -23,6 +23,7 @@ func NewNode(svc *nodepool.NodePool) *node {
 type registerNodeBody struct {
 	Id   string `json:"id"`
 	Host string `json:"host"`
+	Port uint   `json:"port"`
 }
 
 func (c *node) registerNode(ctx *fiber.Ctx) error {
@@ -31,5 +32,9 @@ func (c *node) registerNode(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	return c.svc.Register(body.Id, body.Host)
+	if err := c.svc.Register(body.Id, body.Host); err != nil {
+		return err
+	}
+
+	return ctx.Status(fiber.StatusOK).SendString("OK")
 }

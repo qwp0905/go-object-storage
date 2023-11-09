@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/pkg/errors v0.9.1
 	github.com/valyala/fasthttp v1.50.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (

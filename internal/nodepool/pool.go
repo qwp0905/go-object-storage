@@ -3,6 +3,7 @@ package nodepool
 import (
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/valyala/fasthttp"
@@ -50,15 +51,44 @@ func NewNodePool(key string) *NodePool {
 }
 
 func (p *NodePool) getRootMetadata() (*datanode.Metadata, error) {
-	if p.root == nil {
-		root := p.getNodeToSave()
-		if err := p.putMetadata(root.Host, &datanode.Metadata{
-			Key:       p.rootKey,
-			NextNodes: []*datanode.NextRoute{},
-		}); err != nil {
-			return nil, err
-		}
-		p.root = root
+	if p.root != nil {
+		return p.getMetadata(p.root.Host, p.rootKey)
 	}
+
+	if err := p.findRoot(); err == nil {
+		return p.getMetadata(p.root.Host, p.rootKey)
+	}
+
+	if err := p.createRoot(); err != nil {
+		return nil, err
+	}
+
 	return p.getMetadata(p.root.Host, p.rootKey)
+}
+
+func (p *NodePool) createRoot() error {
+	root := p.getNodeToSave()
+	rootMeta := &datanode.Metadata{
+		Key:       p.rootKey,
+		NextNodes: []*datanode.NextRoute{},
+	}
+
+	if err := p.putMetadata(root.Host, rootMeta); err != nil {
+		return err
+	}
+	p.root = root
+
+	return nil
+}
+
+func (p *NodePool) findRoot() error {
+	for _, v := range p.nodeInfo {
+		if _, err := p.getMetadata(v.Host, p.rootKey); err != nil {
+			continue
+		}
+		p.root = &NodeInfo{Host: v.Host, Id: v.Id}
+		return nil
+	}
+
+	return errors.New("root node not found")
 }
