@@ -16,6 +16,7 @@ func NewMeta(svc *datanode.DataNode) *meta {
 		svc:            svc,
 	}
 
+	controller.router.Head("/*")
 	controller.router.Get("/*", controller.get)
 	controller.router.Put("/*", controller.put)
 	controller.router.Delete("/*", controller.delete)

@@ -14,7 +14,7 @@ func NewFileSystem() *FileSystem {
 	return &FileSystem{}
 }
 
-func (f *FileSystem) ReadFile(key string) (io.Reader, error) {
+func (f *FileSystem) ReadFile(key string) (*os.File, error) {
 	file, err := os.Open(key)
 	if os.IsNotExist(err) {
 		return nil, fiber.ErrNotFound
@@ -31,6 +31,7 @@ func (f *FileSystem) WriteFile(key string, r io.Reader) (uint, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer file.Close()
 
 	n, err := io.Copy(file, r)
 	if err != nil {

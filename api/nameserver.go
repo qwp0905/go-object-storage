@@ -15,6 +15,8 @@ func NewNameServer(svc *nodepool.NodePool) *nameserver {
 		controllerImpl: New("/api"),
 		svc:            svc,
 	}
+
+	c.router.Head("/*")
 	c.router.Get("/", c.listObject)
 	c.router.Get("/*", c.getObject)
 	c.router.Post("/*", c.putObject)
@@ -25,10 +27,11 @@ func NewNameServer(svc *nodepool.NodePool) *nameserver {
 }
 
 func (c *nameserver) getObject(ctx *fiber.Ctx) error {
-	obj, err := c.svc.GetObject(ctx.Path())
+	done, obj, err := c.svc.GetObject(ctx.Path())
 	if err != nil {
 		return err
 	}
+	defer close(done)
 
 	return ctx.SendStream(obj)
 }

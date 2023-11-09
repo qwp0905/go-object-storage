@@ -54,19 +54,19 @@ func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datan
 	return out, nil
 }
 
-func (p *NodePool) GetObject(key string) (io.Reader, error) {
+func (p *NodePool) GetObject(key string) (chan<- struct{}, io.Reader, error) {
 	if len(p.nodeInfo) == 0 {
-		return nil, errors.New("no host registered...")
+		return nil, nil, errors.New("no host registered...")
 	}
 
 	root, err := p.getRootMetadata()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	_, metadata, err := p.search(p.root.Id, key, root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return p.getDirect(metadata)

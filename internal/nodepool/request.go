@@ -133,11 +133,11 @@ func (p *NodePool) putDirect(r io.Reader) (*datanode.Metadata, error) {
 	return data, nil
 }
 
-func (p *NodePool) getDirect(metadata *datanode.Metadata) (io.Reader, error) {
+func (p *NodePool) getDirect(metadata *datanode.Metadata) (chan<- struct{}, io.Reader, error) {
 	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
+	defer fasthttp.ReleaseRequest(req)
 
 	req.Header.SetMethod(fasthttp.MethodGet)
 	req.SetRequestURI(fmt.Sprintf(
@@ -148,10 +148,14 @@ func (p *NodePool) getDirect(metadata *datanode.Metadata) (io.Reader, error) {
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return res.BodyStream(), nil
+	done := make(chan struct{})
+	defer wait(done)
+
+	//TODO 문제 가능성 있음 response가 close되었을 때 정상적으로 read가 불가할듯
+	return done, res.BodyStream(), nil
 }
 
 func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
@@ -177,4 +181,8 @@ func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
 	}
 
 	return nil
+}
+
+func wait(c chan struct{}) {
+	<-c
 }

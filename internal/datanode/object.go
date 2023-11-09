@@ -1,6 +1,8 @@
 package datanode
 
-import "io"
+import (
+	"io"
+)
 
 func (d *DataNode) GetObject(key string) (io.Reader, error) {
 	return d.fs.ReadFile(d.getDataKey(key))
