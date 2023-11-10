@@ -25,7 +25,7 @@ func NewMeta(svc *datanode.DataNode) *meta {
 }
 
 func (c *meta) get(ctx *fiber.Ctx) error {
-	out, err := c.svc.GetMetadata(c.Path())
+	out, err := c.svc.GetMetadata(ctx.Context(), c.Path())
 	if err != nil {
 		return err
 	}

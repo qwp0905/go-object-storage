@@ -27,11 +27,10 @@ func NewNameServer(svc *nodepool.NodePool) *nameserver {
 }
 
 func (c *nameserver) getObject(ctx *fiber.Ctx) error {
-	done, obj, err := c.svc.GetObject(ctx.Path())
+	obj, err := c.svc.GetObject(ctx.Context(), ctx.Path())
 	if err != nil {
 		return err
 	}
-	defer close(done)
 
 	return ctx.SendStream(obj)
 }
@@ -60,7 +59,11 @@ func (c *nameserver) listObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameserver) putObject(ctx *fiber.Ctx) error {
-	if err := c.svc.PutObject(ctx.Path(), ctx.Request().BodyStream()); err != nil {
+	if err := c.svc.PutObject(
+		ctx.Path(),
+		ctx.Request().Header.ContentLength(),
+		ctx.Request().BodyStream(),
+	); err != nil {
 		return err
 	}
 

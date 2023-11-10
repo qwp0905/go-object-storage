@@ -1,11 +1,12 @@
 package datanode
 
 import (
+	"context"
 	"io"
 )
 
-func (d *DataNode) GetObject(key string) (io.Reader, error) {
-	return d.fs.ReadFile(d.getDataKey(key))
+func (d *DataNode) GetObject(ctx context.Context, key string) (io.Reader, error) {
+	return d.fs.ReadFile(ctx, d.getDataKey(key))
 }
 
 func (d *DataNode) PutObject(r io.Reader) (*Metadata, error) {

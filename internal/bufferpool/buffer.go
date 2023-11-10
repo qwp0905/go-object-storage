@@ -17,6 +17,7 @@ type buffer struct {
 }
 
 func (b *buffer) getData() *bytes.Reader {
+	b.lastAccess = time.Now()
 	return bytes.NewReader(b.data)
 }
 

@@ -2,6 +2,7 @@ package datanode
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 )
@@ -23,8 +24,8 @@ func (m *Metadata) FileExists() bool {
 	return m.Source != ""
 }
 
-func (d *DataNode) GetMetadata(key string) (io.Reader, error) {
-	return d.fs.ReadFile(d.getMetaKey(key))
+func (d *DataNode) GetMetadata(ctx context.Context, key string) (io.Reader, error) {
+	return d.fs.ReadFile(ctx, d.getMetaKey(key))
 }
 
 func (d *DataNode) PutMetadata(key string, metadata *Metadata) error {

@@ -2,6 +2,7 @@ package datanode
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -40,9 +41,9 @@ func (c *config) setDefault() {
 	}
 }
 
-func NewDataNode(path string) (*DataNode, error) {
+func NewDataNode(ctx context.Context, path string) (*DataNode, error) {
 	fs := filesystem.NewFileSystem()
-	f, err := fs.ReadFile(path)
+	f, err := fs.ReadFile(ctx, path)
 	if err != nil {
 		return nil, err
 	}

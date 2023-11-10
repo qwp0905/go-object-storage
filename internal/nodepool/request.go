@@ -2,6 +2,7 @@ package nodepool
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -66,7 +67,6 @@ func (p *NodePool) headMetadata(host string, key string) (*fasthttp.ResponseHead
 
 	req.Header.SetMethod(fasthttp.MethodHead)
 	req.SetRequestURI(fmt.Sprintf("http://%s/meta/%s", host, key))
-	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func counter() func(int) int {
 	}
 }
 
-func (p *NodePool) putDirect(r io.Reader) (*datanode.Metadata, error) {
+func (p *NodePool) putDirect(size int, r io.Reader) (*datanode.Metadata, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
@@ -116,6 +116,7 @@ func (p *NodePool) putDirect(r io.Reader) (*datanode.Metadata, error) {
 	node := p.getNodeToSave()
 	req.Header.SetMethod(fasthttp.MethodPut)
 	req.SetRequestURI(fmt.Sprintf("http://%s/data/", node.Host))
+	req.SetBodyStream(r, size)
 
 	if err := p.client.Do(req, res); err != nil {
 		return nil, err
@@ -133,10 +134,9 @@ func (p *NodePool) putDirect(r io.Reader) (*datanode.Metadata, error) {
 	return data, nil
 }
 
-func (p *NodePool) getDirect(metadata *datanode.Metadata) (chan<- struct{}, io.Reader, error) {
+func (p *NodePool) getDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error) {
 	req := fasthttp.AcquireRequest()
 	res := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(res)
 	defer fasthttp.ReleaseRequest(req)
 
 	req.Header.SetMethod(fasthttp.MethodGet)
@@ -148,14 +148,11 @@ func (p *NodePool) getDirect(metadata *datanode.Metadata) (chan<- struct{}, io.R
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
+	go release(ctx, res)
 
-	done := make(chan struct{})
-	defer wait(done)
-
-	//TODO 문제 가능성 있음 response가 close되었을 때 정상적으로 read가 불가할듯
-	return done, res.BodyStream(), nil
+	return res.BodyStream(), nil
 }
 
 func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
@@ -170,7 +167,6 @@ func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
 		p.getNodeHost(metadata.NodeId),
 		metadata.Source,
 	))
-	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
 		return err
@@ -183,6 +179,7 @@ func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
 	return nil
 }
 
-func wait(c chan struct{}) {
-	<-c
+func release(ctx context.Context, res *fasthttp.Response) {
+	defer fasthttp.ReleaseResponse(res)
+	<-ctx.Done()
 }

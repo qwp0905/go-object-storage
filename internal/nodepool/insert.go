@@ -62,12 +62,12 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 	return p.putMetadata(p.getNodeHost(id), current)
 }
 
-func (p *NodePool) PutObject(key string, r io.Reader) error {
+func (p *NodePool) PutObject(key string, size int, r io.Reader) error {
 	if len(p.nodeInfo) == 0 {
 		return errors.New("no host registered...")
 	}
 
-	metadata, err := p.putDirect(r)
+	metadata, err := p.putDirect(size, r)
 	if err != nil {
 		return err
 	}

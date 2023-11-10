@@ -1,6 +1,7 @@
 package nodepool
 
 import (
+	"context"
 	"io"
 	"strings"
 
@@ -54,22 +55,22 @@ func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datan
 	return out, nil
 }
 
-func (p *NodePool) GetObject(key string) (chan<- struct{}, io.Reader, error) {
+func (p *NodePool) GetObject(ctx context.Context, key string) (io.Reader, error) {
 	if len(p.nodeInfo) == 0 {
-		return nil, nil, errors.New("no host registered...")
+		return nil, errors.New("no host registered...")
 	}
 
 	root, err := p.getRootMetadata()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	_, metadata, err := p.search(p.root.Id, key, root)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return p.getDirect(metadata)
+	return p.getDirect(ctx, metadata)
 }
 
 func (p *NodePool) ListObject(prefix string) ([]*datanode.Metadata, error) {
@@ -81,5 +82,6 @@ func (p *NodePool) ListObject(prefix string) ([]*datanode.Metadata, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.listSearch(prefix, root)
 }

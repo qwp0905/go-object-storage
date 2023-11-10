@@ -1,20 +1,20 @@
 package filesystem
 
 import (
+	"context"
 	"io"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-type FileSystem struct {
-}
+type FileSystem struct{}
 
 func NewFileSystem() *FileSystem {
 	return &FileSystem{}
 }
 
-func (f *FileSystem) ReadFile(key string) (*os.File, error) {
+func (f *FileSystem) ReadFile(ctx context.Context, key string) (*os.File, error) {
 	file, err := os.Open(key)
 	if os.IsNotExist(err) {
 		return nil, fiber.ErrNotFound
@@ -22,6 +22,7 @@ func (f *FileSystem) ReadFile(key string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	go closeFile(ctx, file)
 
 	return file, nil
 }
@@ -46,4 +47,9 @@ func (f *FileSystem) RemoveFile(key string) error {
 		return err
 	}
 	return nil
+}
+
+func closeFile(ctx context.Context, file *os.File) {
+	defer file.Close()
+	<-ctx.Done()
 }
