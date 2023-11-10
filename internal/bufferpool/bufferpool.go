@@ -1,7 +1,6 @@
 package bufferpool
 
 import (
-	"bufio"
 	"context"
 	"io"
 	"sync"
@@ -11,7 +10,7 @@ import (
 )
 
 const (
-	B  = uint(1)
+	B  = 1
 	KB = B * (1 << 10)
 	MB = KB * (1 << 10)
 	GB = MB * (1 << 10)
@@ -35,32 +34,19 @@ func NewBufferPool(maxSize uint, fs *filesystem.FileSystem) *BufferPool {
 	}
 }
 
-func (p *BufferPool) available() int {
-	total := 0
-	for _, v := range p.objects {
-		total += int(v.getSize())
-	}
-
-	return int(p.maxSize) - total
-}
-
 func (p *BufferPool) GetObject(ctx context.Context, key string) (io.Reader, error) {
 	obj, ok := p.objects[key]
 	if ok {
-		return bufio.NewReader(obj.getData()), nil
+		return obj.getData(), nil
 	}
 
-	file, err := p.fs.ReadFile(ctx, key)
+	buf, err := p.newBuffer(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	// info, err := file.Stat()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if int64(p.available()) > info.Size() {
 
-	// }
+	return buf.getData(), nil
+}
 
-	return file, nil
+func (p *BufferPool) PutObject(ctx context.Context, key string) {
 }

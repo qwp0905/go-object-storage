@@ -21,8 +21,8 @@ func (b *buffer) getData() *bytes.Reader {
 	return bytes.NewReader(b.data)
 }
 
-func (b *buffer) getSize() uint {
-	return uint(len(b.data))
+func (b *buffer) getSize() int {
+	return len(b.data)
 }
 
 func (b *buffer) isDirty() bool {
