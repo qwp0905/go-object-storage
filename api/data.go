@@ -17,7 +17,7 @@ func NewData(svc *datanode.DataNode) *data {
 	}
 
 	c.router.Get("/*", c.get)
-	c.router.Put("/", c.put)
+	c.router.Put("/*", c.put)
 	c.router.Delete("/*", c.delete)
 
 	return c
