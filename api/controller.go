@@ -1,6 +1,8 @@
 package api
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -24,4 +26,8 @@ func (c *controllerImpl) Path() string {
 
 func (c *controllerImpl) Router() *fiber.App {
 	return c.router
+}
+
+func (c *controllerImpl) getPath(ctx *fiber.Ctx) string {
+	return strings.Replace(ctx.Path(), c.Path(), "", 1)
 }

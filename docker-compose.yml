@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: deploy/nameserver/Dockerfile
     container_name: nameserver
-    command: ["--root", "/", "--addr", "8080"]
+    command: ["--addr", "8080"]
     deploy:
       mode: global
       resources:
@@ -29,6 +29,11 @@ services:
         limits:
           cpus: "0.06"
           memory: 128M
+    ports:
+      - protocol: tcp
+        target: 8080
+        published: 8081
+    stop_grace_period: "5s"
     volumes:
       - type: bind
         source: .data/1.yaml

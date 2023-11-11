@@ -11,17 +11,15 @@ import (
 var app *http.Application
 
 var (
-	rootKey string
-	addr    uint
+	addr uint
 )
 
 func main() {
-	flag.StringVar(&rootKey, "root", "/", "root metadata key")
 	flag.UintVar(&addr, "addr", 8080, "application addr")
 
 	flag.Parse()
 
-	nodePool := nodepool.NewNodePool(rootKey)
+	nodePool := nodepool.NewNodePool()
 
 	healthController := api.NewHealth()
 	apiController := api.NewNameServer(nodePool)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/valyala/fasthttp"
 )
@@ -40,13 +41,14 @@ func (p *NodePool) getNodeToSave() *NodeInfo {
 	return nil
 }
 
-func NewNodePool(key string) *NodePool {
+func NewNodePool() *NodePool {
 	return &NodePool{
 		client:   &fasthttp.Client{},
 		nodeInfo: make(map[string]*NodeInfo),
-		rootKey:  key,
+		rootKey:  "/",
 		locker:   new(sync.Mutex),
 		counter:  counter(),
+		root:     nil,
 	}
 }
 
@@ -77,7 +79,7 @@ func (p *NodePool) createRoot() error {
 		return err
 	}
 	p.root = root
-
+	logger.Infof("datanode id %s host %s registered as root", root.Id, root.Host)
 	return nil
 }
 

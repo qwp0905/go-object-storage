@@ -1,6 +1,8 @@
 package api
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
 )
@@ -27,7 +29,7 @@ func NewNameServer(svc *nodepool.NodePool) *nameserver {
 }
 
 func (c *nameserver) getObject(ctx *fiber.Ctx) error {
-	obj, err := c.svc.GetObject(ctx.Context(), ctx.Path())
+	obj, err := c.svc.GetObject(ctx.Context(), c.getPath(ctx))
 	if err != nil {
 		return err
 	}
@@ -36,9 +38,9 @@ func (c *nameserver) getObject(ctx *fiber.Ctx) error {
 }
 
 type listObjectResponse struct {
-	Key          string `json:"key"`
-	Size         uint   `json:"size"`
-	LastModified string `json:"last_modified"`
+	Key          string    `json:"key"`
+	Size         uint      `json:"size"`
+	LastModified time.Time `json:"last_modified"`
 }
 
 func (c *nameserver) listObject(ctx *fiber.Ctx) error {
@@ -50,8 +52,9 @@ func (c *nameserver) listObject(ctx *fiber.Ctx) error {
 	out := []*listObjectResponse{}
 	for _, meta := range list {
 		out = append(out, &listObjectResponse{
-			Key:  meta.Key,
-			Size: meta.Size,
+			Key:          meta.Key,
+			Size:         meta.Size,
+			LastModified: meta.LastModified,
 		})
 	}
 
@@ -59,11 +62,13 @@ func (c *nameserver) listObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameserver) putObject(ctx *fiber.Ctx) error {
-	if err := c.svc.PutObject(
-		ctx.Path(),
-		ctx.Request().Header.ContentLength(),
-		ctx.Request().BodyStream(),
-	); err != nil {
+	body := ctx.Request().BodyStream()
+	if body == nil {
+		return fiber.ErrBadRequest
+	}
+	defer ctx.Request().CloseBodyStream()
+
+	if err := c.svc.PutObject(c.getPath(ctx), ctx.Request().Header.ContentLength(), body); err != nil {
 		return err
 	}
 
@@ -71,7 +76,7 @@ func (c *nameserver) putObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameserver) deleteObject(ctx *fiber.Ctx) error {
-	if err := c.svc.DeleteObject(ctx.Path()); err != nil {
+	if err := c.svc.DeleteObject(c.getPath(ctx)); err != nil {
 		return err
 	}
 
@@ -79,8 +84,7 @@ func (c *nameserver) deleteObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameserver) headObject(ctx *fiber.Ctx) error {
-	_, err := c.svc.GetMetadata(ctx.Path())
-	if err != nil {
+	if _, err := c.svc.GetMetadata(c.getPath(ctx)); err != nil {
 		return err
 	}
 

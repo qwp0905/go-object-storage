@@ -31,17 +31,17 @@ func (p *NodePool) search(id, key string, metadata *datanode.Metadata) (string, 
 }
 
 func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datanode.Metadata, error) {
-	if key == metadata.Key && metadata.FileExists() {
-		return []*datanode.Metadata{metadata}, nil
+	out := []*datanode.Metadata{}
+	if metadata.FileExists() {
+		out = append(out, metadata)
 	}
 
-	out := []*datanode.Metadata{}
 	for _, next := range metadata.NextNodes {
 		if !strings.HasPrefix(next.Key, key) {
 			continue
 		}
 
-		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), key)
+		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), next.Key)
 		if err != nil {
 			return nil, err
 		}

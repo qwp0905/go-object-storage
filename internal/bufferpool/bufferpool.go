@@ -31,6 +31,7 @@ func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
 		fs:      fs,
 		locker:  new(sync.Mutex),
 		maxSize: maxSize,
+		buffers: make(map[string]*buffer),
 	}
 }
 
@@ -89,4 +90,17 @@ func (p *BufferPool) Delete(key string) error {
 	}
 
 	return p.fs.RemoveFile(key)
+}
+
+func (p *BufferPool) FlushAll() error {
+	for _, v := range p.buffers {
+		if !v.isDirty() {
+			continue
+		}
+
+		if _, err := p.fs.WriteFile(v.key, v.getData()); err != nil {
+			return err
+		}
+	}
+	return nil
 }

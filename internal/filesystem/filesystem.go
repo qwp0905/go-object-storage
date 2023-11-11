@@ -17,7 +17,7 @@ func NewFileSystem() *FileSystem {
 func (f *FileSystem) ReadFile(key string) (*os.File, error) {
 	file, err := os.Open(key)
 	if os.IsNotExist(err) {
-		return nil, fiber.ErrNotFound
+		return nil, errors.WithStack(fiber.ErrNotFound)
 	}
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -44,6 +44,24 @@ func (f *FileSystem) WriteFile(key string, r io.Reader) (uint, error) {
 func (f *FileSystem) RemoveFile(key string) error {
 	if err := os.Remove(key); err != nil && !os.IsNotExist(err) {
 		return errors.WithStack(err)
+	}
+	return nil
+}
+
+func EnsureDir(path string) error {
+	err := os.Mkdir(path, os.ModeDir)
+	if err == nil {
+		return nil
+	}
+	if !os.IsExist(err) {
+		return errors.WithStack(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	if !info.IsDir() {
+		return errors.Errorf("path %s is not a directory", path)
 	}
 	return nil
 }

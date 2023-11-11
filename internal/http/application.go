@@ -16,6 +16,7 @@ type Application struct {
 
 func NewApplication(port uint, controllers ...api.Controller) *Application {
 	source := fiber.New(fiber.Config{
+		StreamRequestBody: true,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 
@@ -23,7 +24,7 @@ func NewApplication(port uint, controllers ...api.Controller) *Application {
 				code = e.Code
 			}
 
-			logger.Errorf("%+v", err)
+			logger.FromCtx(c, err)
 			return c.Status(code).JSON(fiber.Map{"message": err.Error()})
 		},
 	})

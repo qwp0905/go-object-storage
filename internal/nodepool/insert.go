@@ -2,7 +2,10 @@ package nodepool
 
 import (
 	"io"
+	"time"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
@@ -67,25 +70,45 @@ func (p *NodePool) PutObject(key string, size int, r io.Reader) error {
 		return errors.New("no host registered...")
 	}
 
-	metadata, err := p.putDirect(size, r)
-	if err != nil {
-		return err
-	}
-
-	metadata.Key = key
-	next := p.getNodeToSave()
-	if err := p.putMetadata(next.Host, metadata); err != nil {
-		return err
-	}
-
 	root, err := p.getRootMetadata()
 	if err != nil {
 		return err
 	}
 
-	return p.reorderMetadata(
-		p.root.Id,
-		root,
-		&datanode.NextRoute{NodeId: next.Id, Key: key},
-	)
+	id, metadata, err := p.search(p.root.Id, key, root)
+	if err != nil && err != fiber.ErrNotFound {
+		return err
+	} else if err == nil {
+		_, err := p.putDirect(metadata, r)
+		if err != nil {
+			return err
+		}
+		metadata.Size = uint(size)
+		metadata.LastModified = time.Now()
+		return p.putMetadata(p.getNodeHost(id), metadata)
+	} else {
+		node := p.getNodeToSave()
+		metadata = &datanode.Metadata{
+			Key:          key,
+			Source:       generateKey(),
+			Size:         uint(size),
+			NodeId:       node.Id,
+			LastModified: time.Now(),
+			NextNodes:    []*datanode.NextRoute{},
+		}
+		if _, err := p.putDirect(metadata, r); err != nil {
+			return err
+		}
+
+		metadataNode := p.getNodeToSave()
+		if err := p.putMetadata(p.getNodeHost(metadataNode.Id), metadata); err != nil {
+			return err
+		}
+		return p.reorderMetadata(p.root.Id, root, &datanode.NextRoute{NodeId: metadataNode.Id, Key: key})
+	}
+}
+
+func generateKey() string {
+	id, _ := uuid.NewRandom()
+	return id.String()
 }

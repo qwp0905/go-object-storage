@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/bufferpool"
+	"github.com/qwp0905/go-object-storage/internal/filesystem"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/valyala/fasthttp"
@@ -45,32 +46,13 @@ func (c *config) setDefault() {
 }
 
 func NewDataNode(path string, bp *bufferpool.BufferPool) (*DataNode, uint, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer f.Close()
-
-	cfg := new(config)
-	if err := yaml.NewDecoder(f).Decode(cfg); err != nil {
-		return nil, 0, errors.WithStack(err)
-	}
-
-	cfg.setDefault()
-
-	b, err := yaml.Marshal(cfg)
+	cfg, err := ensureConfig(path)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	u, err := os.Create(path)
-	if err != nil {
+	if err := ensureDirs(cfg.BaseDir); err != nil {
 		return nil, 0, err
-	}
-	defer u.Close()
-
-	if _, err := u.Write(b); err != nil {
-		return nil, 0, errors.WithStack(err)
 	}
 
 	return &DataNode{
@@ -147,4 +129,46 @@ func register(cfg *config) error {
 	}
 
 	return nil
+}
+
+func ensureDirs(base string) error {
+	if err := filesystem.EnsureDir(fmt.Sprintf("%s/meta/", base)); err != nil {
+		return err
+	}
+	if err := filesystem.EnsureDir(fmt.Sprintf("%s/object/", base)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureConfig(path string) (*config, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	defer f.Close()
+
+	cfg := new(config)
+	if err := yaml.NewDecoder(f).Decode(cfg); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	cfg.setDefault()
+
+	b, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := os.Create(path)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	defer u.Close()
+
+	if _, err := u.Write(b); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return cfg, nil
 }

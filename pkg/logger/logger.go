@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 var (
@@ -70,4 +72,26 @@ var tz, _ = time.LoadLocation("Asia/Seoul")
 
 func localDateTime() string {
 	return time.Now().In(tz).Format(time.DateTime)
+}
+
+func FromCtx(ctx *fiber.Ctx, err error) {
+	l := &ctxLog{
+		Path:    ctx.Path(),
+		At:      time.Now(),
+		Message: fmt.Sprintf("%+v", err),
+		Query:   string(ctx.Request().URI().QueryString()),
+		Body:    string(ctx.Body()),
+		Level:   "error",
+	}
+	b, _ := json.Marshal(l)
+	stderr.Println(string(b))
+}
+
+type ctxLog struct {
+	Level   string    `json:"level"`
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Query   string    `json:"query"`
+	Path    string    `json:"path"`
+	Body    string    `json:"body"`
 }

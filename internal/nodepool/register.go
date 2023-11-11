@@ -7,12 +7,13 @@ import (
 )
 
 func (p *NodePool) Register(id string, host string) error {
-	header, err := p.headMetadata(host, p.rootKey)
-	if err == nil && header.StatusCode() == fiber.StatusOK {
-		if p.root != nil {
+	_, err := p.getMetadata(host, p.rootKey)
+	if err == nil {
+		if p.root != nil && p.root.Id != id {
 			return errors.New("root node already registered")
 		}
 		p.root = &NodeInfo{Host: host, Id: id}
+		logger.Infof("datanode id %s host %s registered as root", id, host)
 	} else if err != nil && err != fiber.ErrNotFound {
 		return errors.WithStack(err)
 	}

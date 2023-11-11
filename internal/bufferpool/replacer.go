@@ -2,6 +2,8 @@ package bufferpool
 
 import (
 	"time"
+
+	"github.com/qwp0905/go-object-storage/pkg/logger"
 )
 
 func (p *BufferPool) available() int {
@@ -16,12 +18,14 @@ func (p *BufferPool) available() int {
 func (p *BufferPool) deAllocate(key string) {
 	p.locker.Lock()
 	defer p.locker.Unlock()
+	logger.Infof("%s de allocated", key)
 	delete(p.buffers, key)
 }
 
 func (p *BufferPool) allocate(bp *buffer) {
 	p.locker.Lock()
 	defer p.locker.Unlock()
+	logger.Infof("%s allocated", bp.key)
 	p.buffers[bp.key] = bp
 }
 

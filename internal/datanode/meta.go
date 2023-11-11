@@ -3,15 +3,18 @@ package datanode
 import (
 	"bytes"
 	"encoding/json"
-	"io"
+	"time"
+
+	"github.com/pkg/errors"
 )
 
 type Metadata struct {
-	Key       string       `json:"key"`
-	Source    string       `json:"source"`
-	Size      uint         `json:"size"`
-	NodeId    string       `json:"node_id"`
-	NextNodes []*NextRoute `json:"next_nodes"`
+	Key          string       `json:"key"`
+	Source       string       `json:"source"`
+	Size         uint         `json:"size"`
+	NodeId       string       `json:"node_id"`
+	LastModified time.Time    `json:"last_modified"`
+	NextNodes    []*NextRoute `json:"next_nodes"`
 }
 
 type NextRoute struct {
@@ -23,17 +26,26 @@ func (m *Metadata) FileExists() bool {
 	return m.Source != ""
 }
 
-func (d *DataNode) GetMetadata(key string) (io.Reader, error) {
-	return d.bp.Get(d.getMetaKey(key))
-}
-
-func (d *DataNode) PutMetadata(key string, metadata *Metadata) error {
-	buf := new(bytes.Buffer)
-	if err := json.NewEncoder(buf).Encode(metadata); err != nil {
-		return err
+func (d *DataNode) GetMetadata(key string) (*Metadata, error) {
+	r, err := d.bp.Get(d.getMetaKey(key))
+	if err != nil {
+		return nil, err
+	}
+	metadata := new(Metadata)
+	if err := json.NewDecoder(r).Decode(metadata); err != nil {
+		return nil, errors.WithStack(err)
 	}
 
-	if err := d.bp.Put(d.getMetaKey(key), buf.Len(), buf); err != nil {
+	return metadata, nil
+}
+
+func (d *DataNode) PutMetadata(metadata *Metadata) error {
+	b, err := json.Marshal(metadata)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := d.bp.Put(d.getMetaKey(metadata.Key), len(b), bytes.NewReader(b)); err != nil {
 		return err
 	}
 

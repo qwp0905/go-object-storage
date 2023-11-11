@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
@@ -17,14 +18,14 @@ func NewMeta(svc *datanode.DataNode) *meta {
 	}
 
 	c.router.Get("/*", c.get)
-	c.router.Put("/*", c.put)
+	c.router.Put("/", c.put)
 	c.router.Delete("/*", c.delete)
 
 	return c
 }
 
 func (c *meta) get(ctx *fiber.Ctx) error {
-	out, err := c.svc.GetMetadata(c.Path())
+	out, err := c.svc.GetMetadata(c.getPath(ctx))
 	if err != nil {
 		return err
 	}
@@ -35,10 +36,10 @@ func (c *meta) get(ctx *fiber.Ctx) error {
 func (c *meta) put(ctx *fiber.Ctx) error {
 	body := new(datanode.Metadata)
 	if err := ctx.BodyParser(body); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
-	if err := c.svc.PutMetadata(c.Path(), body); err != nil {
+	if err := c.svc.PutMetadata(body); err != nil {
 		return err
 	}
 
@@ -46,7 +47,7 @@ func (c *meta) put(ctx *fiber.Ctx) error {
 }
 
 func (c *meta) delete(ctx *fiber.Ctx) error {
-	if err := c.svc.DeleteMetadata(c.Path()); err != nil {
+	if err := c.svc.DeleteMetadata(c.getPath(ctx)); err != nil {
 		return err
 	}
 
