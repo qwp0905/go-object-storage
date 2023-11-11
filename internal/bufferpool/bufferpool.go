@@ -3,9 +3,11 @@ package bufferpool
 import (
 	"io"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
+	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
 
@@ -19,20 +21,35 @@ const (
 )
 
 type BufferPool struct {
-	noCopy  nocopy.NoCopy
-	fs      *filesystem.FileSystem
-	locker  *sync.Mutex
-	buffers map[string]*buffer
-	maxSize int
+	noCopy   nocopy.NoCopy
+	fs       *filesystem.FileSystem
+	locker   *sync.Mutex
+	buffers  map[string]*buffer
+	maxSize  int
+	interval time.Duration
 }
 
-func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
-	return &BufferPool{
-		fs:      fs,
-		locker:  new(sync.Mutex),
-		maxSize: maxSize,
-		buffers: make(map[string]*buffer),
+func NewBufferPool(maxSize int, interval time.Duration, fs *filesystem.FileSystem) *BufferPool {
+	bp := &BufferPool{
+		fs:       fs,
+		locker:   new(sync.Mutex),
+		maxSize:  maxSize,
+		buffers:  make(map[string]*buffer),
+		interval: interval,
 	}
+	go func() {
+		for {
+			time.Sleep(bp.interval)
+			logger.Info("flushing start")
+			if err := bp.FlushAll(); err != nil {
+				logger.Warnf("flushing at %+v", err)
+				continue
+			}
+			logger.Info("flushing start")
+		}
+	}()
+
+	return bp
 }
 
 func (p *BufferPool) Get(key string) (io.Reader, error) {
@@ -93,14 +110,15 @@ func (p *BufferPool) Delete(key string) error {
 }
 
 func (p *BufferPool) FlushAll() error {
-	for _, v := range p.buffers {
+	for k, v := range p.buffers {
 		if !v.isDirty() {
 			continue
 		}
 
-		if _, err := p.fs.WriteFile(v.key, v.getData()); err != nil {
+		if _, err := p.fs.WriteFile(k, v.getData()); err != nil {
 			return err
 		}
+		v.clear()
 	}
 	return nil
 }

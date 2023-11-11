@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/qwp0905/go-object-storage/api"
 	"github.com/qwp0905/go-object-storage/internal/bufferpool"
@@ -25,7 +26,11 @@ func main() {
 	flag.Parse()
 
 	fs := filesystem.NewFileSystem()
-	bp := bufferpool.NewBufferPool(int(float64(os.Getpagesize()*bufferpool.MB)*0.8), fs)
+	bp := bufferpool.NewBufferPool(
+		int(float64(os.Getpagesize()*bufferpool.MB)*0.8),
+		time.Minute,
+		fs,
+	)
 	logger.Infof("%f mb can be allocate", float64(os.Getpagesize())*0.8)
 	node, addr, err := datanode.NewDataNode(configPath, bp)
 	if err != nil {

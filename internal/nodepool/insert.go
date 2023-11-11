@@ -79,12 +79,13 @@ func (p *NodePool) PutObject(key string, size int, r io.Reader) error {
 	if err != nil && err != fiber.ErrNotFound {
 		return err
 	} else if err == nil {
-		_, err := p.putDirect(metadata, r)
-		if err != nil {
-			return err
-		}
 		metadata.Size = uint(size)
 		metadata.LastModified = time.Now()
+
+		if _, err := p.putDirect(metadata, r); err != nil {
+			return err
+		}
+
 		return p.putMetadata(p.getNodeHost(id), metadata)
 	} else {
 		node := p.getNodeToSave()

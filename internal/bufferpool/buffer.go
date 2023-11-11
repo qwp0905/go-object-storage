@@ -56,6 +56,12 @@ func (bp *buffer) setDirty() {
 	bp.dirty = true
 }
 
+func (bp *buffer) clear() {
+	bp.locker.Lock()
+	defer bp.locker.Unlock()
+	bp.dirty = false
+}
+
 func (bp *buffer) putData(r io.Reader) error {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
