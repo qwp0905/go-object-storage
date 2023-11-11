@@ -2,7 +2,6 @@ package datanode
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 )
@@ -24,8 +23,8 @@ func (m *Metadata) FileExists() bool {
 	return m.Source != ""
 }
 
-func (d *DataNode) GetMetadata(ctx context.Context, key string) (io.Reader, error) {
-	return d.fs.ReadFile(ctx, d.getMetaKey(key))
+func (d *DataNode) GetMetadata(key string) (io.Reader, error) {
+	return d.bp.Get(d.getMetaKey(key))
 }
 
 func (d *DataNode) PutMetadata(key string, metadata *Metadata) error {
@@ -34,8 +33,7 @@ func (d *DataNode) PutMetadata(key string, metadata *Metadata) error {
 		return err
 	}
 
-	_, err := d.fs.WriteFile(d.getMetaKey(key), buf)
-	if err != nil {
+	if err := d.bp.Put(d.getMetaKey(key), buf.Len(), buf); err != nil {
 		return err
 	}
 
@@ -43,5 +41,5 @@ func (d *DataNode) PutMetadata(key string, metadata *Metadata) error {
 }
 
 func (d *DataNode) DeleteMetadata(key string) error {
-	return d.fs.RemoveFile(d.getMetaKey(key))
+	return d.bp.Delete(d.getMetaKey(key))
 }

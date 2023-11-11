@@ -1,10 +1,10 @@
 package bufferpool
 
 import (
-	"context"
 	"io"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
@@ -22,11 +22,11 @@ type BufferPool struct {
 	noCopy  nocopy.NoCopy
 	fs      *filesystem.FileSystem
 	locker  *sync.Mutex
-	objects map[string]*buffer
-	maxSize uint
+	buffers map[string]*buffer
+	maxSize int
 }
 
-func NewBufferPool(maxSize uint, fs *filesystem.FileSystem) *BufferPool {
+func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
 	return &BufferPool{
 		fs:      fs,
 		locker:  new(sync.Mutex),
@@ -34,19 +34,59 @@ func NewBufferPool(maxSize uint, fs *filesystem.FileSystem) *BufferPool {
 	}
 }
 
-func (p *BufferPool) GetObject(ctx context.Context, key string) (io.Reader, error) {
-	obj, ok := p.objects[key]
+func (p *BufferPool) Get(key string) (io.Reader, error) {
+	bp, ok := p.buffers[key]
 	if ok {
-		return obj.getData(), nil
+		return bp.getData(), nil
 	}
 
-	buf, err := p.newBuffer(ctx, key)
+	f, err := p.fs.ReadFile(key)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf.getData(), nil
+	info, err := f.Stat()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	if err := p.flush(int(info.Size())); err != nil {
+		return nil, err
+	}
+
+	bp = emptyBuffer(key)
+	if err := bp.putData(f); err != nil {
+		return nil, err
+	}
+	p.allocate(bp)
+
+	return bp.getData(), nil
 }
 
-func (p *BufferPool) PutObject(ctx context.Context, key string) {
+func (p *BufferPool) Put(key string, size int, r io.Reader) error {
+	bp, ok := p.buffers[key]
+	if ok {
+		size = size - bp.getSize()
+	}
+
+	if err := p.flush(size); err != nil {
+		return err
+	}
+
+	bp = emptyBuffer(key)
+	bp.setDirty()
+	if err := bp.putData(r); err != nil {
+		return err
+	}
+	p.allocate(bp)
+
+	return nil
+}
+
+func (p *BufferPool) Delete(key string) error {
+	if _, ok := p.buffers[key]; ok {
+		p.deAllocate(key)
+	}
+
+	return p.fs.RemoveFile(key)
 }

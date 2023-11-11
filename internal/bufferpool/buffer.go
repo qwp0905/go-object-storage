@@ -2,8 +2,11 @@ package bufferpool
 
 import (
 	"bytes"
+	"io"
+	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
 
@@ -14,17 +17,58 @@ type buffer struct {
 	lastAccess time.Time
 	pinCount   int
 	dirty      bool
+	locker     *sync.Mutex
 }
 
-func (b *buffer) getData() *bytes.Reader {
-	b.lastAccess = time.Now()
-	return bytes.NewReader(b.data)
+func emptyBuffer(key string) *buffer {
+	return &buffer{
+		key:        key,
+		pinCount:   0,
+		locker:     new(sync.Mutex),
+		dirty:      false,
+		lastAccess: time.Now(),
+	}
 }
 
-func (b *buffer) getSize() int {
-	return len(b.data)
+func (bp *buffer) getData() *bytes.Reader {
+	bp.locker.Lock()
+	defer bp.locker.Unlock()
+	bp.lastAccess = time.Now()
+	bp.pinCount++
+	return bytes.NewReader(bp.data)
 }
 
-func (b *buffer) isDirty() bool {
-	return b.dirty
+func (bp *buffer) getSize() int {
+	bp.locker.Lock()
+	defer bp.locker.Unlock()
+	return len(bp.data)
+}
+
+func (bp *buffer) isDirty() bool {
+	bp.locker.Lock()
+	defer bp.locker.Unlock()
+	return bp.dirty
+}
+
+func (bp *buffer) setDirty() {
+	bp.locker.Lock()
+	defer bp.locker.Unlock()
+	bp.dirty = true
+}
+
+func (bp *buffer) putData(r io.Reader) error {
+	bp.locker.Lock()
+	defer bp.locker.Unlock()
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	if c, ok := r.(io.Closer); ok {
+		defer c.Close()
+	}
+
+	bp.data = b
+	bp.lastAccess = time.Now()
+	return nil
 }

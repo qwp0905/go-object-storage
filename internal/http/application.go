@@ -11,9 +11,10 @@ import (
 
 type Application struct {
 	source *fiber.App
+	port   uint
 }
 
-func NewApplication(controllers ...api.Controller) *Application {
+func NewApplication(port uint, controllers ...api.Controller) *Application {
 	source := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
@@ -31,9 +32,9 @@ func NewApplication(controllers ...api.Controller) *Application {
 		source.Mount(c.Path(), c.Router())
 	}
 
-	return &Application{source: source}
+	return &Application{source: source, port: port}
 }
 
-func (a *Application) Listen(port uint) error {
-	return a.source.Listen(fmt.Sprintf(":%d", port))
+func (a *Application) Listen() error {
+	return a.source.Listen(fmt.Sprintf(":%d", a.port))
 }

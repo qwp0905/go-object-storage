@@ -11,21 +11,20 @@ type meta struct {
 }
 
 func NewMeta(svc *datanode.DataNode) *meta {
-	controller := &meta{
+	c := &meta{
 		controllerImpl: New("/meta"),
 		svc:            svc,
 	}
 
-	controller.router.Head("/*")
-	controller.router.Get("/*", controller.get)
-	controller.router.Put("/*", controller.put)
-	controller.router.Delete("/*", controller.delete)
+	c.router.Get("/*", c.get)
+	c.router.Put("/*", c.put)
+	c.router.Delete("/*", c.delete)
 
-	return controller
+	return c
 }
 
 func (c *meta) get(ctx *fiber.Ctx) error {
-	out, err := c.svc.GetMetadata(ctx.Context(), c.Path())
+	out, err := c.svc.GetMetadata(c.Path())
 	if err != nil {
 		return err
 	}

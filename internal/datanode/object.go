@@ -6,20 +6,23 @@ import (
 )
 
 func (d *DataNode) GetObject(ctx context.Context, key string) (io.Reader, error) {
-	return d.fs.ReadFile(ctx, d.getDataKey(key))
+	return d.bp.Get(d.getDataKey(key))
 }
 
-func (d *DataNode) PutObject(r io.Reader) (*Metadata, error) {
+func (d *DataNode) PutObject(size int, r io.Reader) (*Metadata, error) {
 	source := generateKey()
-	size, err := d.fs.WriteFile(d.getDataKey(source), r)
-	if err != nil {
+	if err := d.bp.Put(d.getDataKey(source), size, r); err != nil {
 		return nil, err
 	}
 
 	return &Metadata{
 		Source:    source,
-		Size:      size,
+		Size:      uint(size),
 		NodeId:    d.id,
 		NextNodes: []*NextRoute{},
 	}, nil
+}
+
+func (d *DataNode) DeleteObject(key string) error {
+	return d.bp.Delete(key)
 }

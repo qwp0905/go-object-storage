@@ -1,19 +1,35 @@
 services:
-  server:
+  nameserver:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: object-storage
+      dockerfile: deploy/nameserver/Dockerfile
+    container_name: nameserver
+    command: ["--root", "/", "--addr", "8080"]
     deploy:
       mode: global
       resources:
         limits:
           cpus: "0.06"
           memory: 128M
-    environment:
-      PORT: 8080
-    networks: ["proxy"]
     ports:
       - protocol: tcp
         target: 8080
         published: 8080
+
+  datanode1:
+    depends_on: ["nameserver"]
+    build:
+      context: .
+      dockerfile: deploy/datanode/Dockerfile
+    container_name: datanode-1
+    command: ["--config", "/var/lib/datanode/config.yaml"]
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.06"
+          memory: 128M
+    volumes:
+      - type: bind
+        source: .data/1.yaml
+        target: /var/lib/datanode/config.yaml

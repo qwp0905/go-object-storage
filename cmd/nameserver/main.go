@@ -15,7 +15,7 @@ var (
 	addr    uint
 )
 
-func init() {
+func main() {
 	flag.StringVar(&rootKey, "root", "/", "root metadata key")
 	flag.UintVar(&addr, "addr", 8080, "application addr")
 
@@ -28,14 +28,12 @@ func init() {
 	nodeController := api.NewNode(nodePool)
 
 	app = http.NewApplication(
+		addr,
 		healthController,
 		apiController,
 		nodeController,
 	)
-}
-
-func main() {
-	if err := app.Listen(addr); err != nil {
+	if err := app.Listen(); err != nil {
 		panic(err)
 	}
 }

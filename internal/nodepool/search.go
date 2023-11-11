@@ -55,7 +55,7 @@ func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datan
 	return out, nil
 }
 
-func (p *NodePool) GetObject(ctx context.Context, key string) (io.Reader, error) {
+func (p *NodePool) GetMetadata(key string) (*datanode.Metadata, error) {
 	if len(p.nodeInfo) == 0 {
 		return nil, errors.New("no host registered...")
 	}
@@ -66,6 +66,15 @@ func (p *NodePool) GetObject(ctx context.Context, key string) (io.Reader, error)
 	}
 
 	_, metadata, err := p.search(p.root.Id, key, root)
+	if err != nil {
+		return nil, err
+	}
+
+	return metadata, nil
+}
+
+func (p *NodePool) GetObject(ctx context.Context, key string) (io.Reader, error) {
+	metadata, err := p.GetMetadata(key)
 	if err != nil {
 		return nil, err
 	}

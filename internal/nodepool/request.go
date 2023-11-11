@@ -43,10 +43,11 @@ func (p *NodePool) putMetadata(host string, metadata *datanode.Metadata) error {
 
 	req.Header.SetMethod(fasthttp.MethodPut)
 	req.SetRequestURI(fmt.Sprintf("http://%s/meta/%s", host, metadata.Key))
-
-	if err := json.NewEncoder(req.BodyWriter()).Encode(metadata); err != nil {
-		return err
+	b, err := json.Marshal(metadata)
+	if err != nil {
+		return errors.WithStack(err)
 	}
+	req.SetBodyStream(bytes.NewReader(b), len(b))
 
 	if err := p.client.Do(req, res); err != nil {
 		return err
@@ -65,11 +66,11 @@ func (p *NodePool) headMetadata(host string, key string) (*fasthttp.ResponseHead
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
-	req.Header.SetMethod(fasthttp.MethodHead)
+	req.Header.SetMethod(fasthttp.MethodGet)
 	req.SetRequestURI(fmt.Sprintf("http://%s/meta/%s", host, key))
 
 	if err := p.client.Do(req, res); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return &res.Header, nil
@@ -86,7 +87,7 @@ func (p *NodePool) deleteMetadata(host string, key string) error {
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	if res.StatusCode() >= 300 {
@@ -119,7 +120,7 @@ func (p *NodePool) putDirect(size int, r io.Reader) (*datanode.Metadata, error) 
 	req.SetBodyStream(r, size)
 
 	if err := p.client.Do(req, res); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	if res.StatusCode() >= 300 {
@@ -128,7 +129,7 @@ func (p *NodePool) putDirect(size int, r io.Reader) (*datanode.Metadata, error) 
 
 	data := new(datanode.Metadata)
 	if err := json.NewDecoder(bytes.NewBuffer(res.Body())).Decode(data); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return data, nil
@@ -148,7 +149,7 @@ func (p *NodePool) getDirect(ctx context.Context, metadata *datanode.Metadata) (
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	go release(ctx, res)
 
@@ -169,7 +170,7 @@ func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
 	))
 
 	if err := p.client.Do(req, res); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	if res.StatusCode() >= 300 {

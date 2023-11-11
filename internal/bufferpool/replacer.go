@@ -1,24 +1,28 @@
 package bufferpool
 
 import (
-	"context"
-	"io"
 	"time"
 )
 
 func (p *BufferPool) available() int {
 	total := 0
-	for _, v := range p.objects {
+	for _, v := range p.buffers {
 		total += v.getSize()
 	}
 
 	return int(p.maxSize) - total
 }
 
-func (p *BufferPool) deleteKey(key string) {
+func (p *BufferPool) deAllocate(key string) {
 	p.locker.Lock()
 	defer p.locker.Unlock()
-	delete(p.objects, key)
+	delete(p.buffers, key)
+}
+
+func (p *BufferPool) allocate(bp *buffer) {
+	p.locker.Lock()
+	defer p.locker.Unlock()
+	p.buffers[bp.key] = bp
 }
 
 func (p *BufferPool) victim(size int) error {
@@ -27,13 +31,13 @@ func (p *BufferPool) victim(size int) error {
 	}
 	t := time.Now()
 	var key string
-	for k, v := range p.objects {
+	for k, v := range p.buffers {
 		if v.isDirty() {
 			s := v.getSize()
 			if _, err := p.fs.WriteFile(k, v.getData()); err != nil {
 				return err
 			}
-			p.deleteKey(k)
+			p.deAllocate(k)
 			return p.victim(size - s)
 		}
 		if t.Compare(v.lastAccess) == 1 {
@@ -42,41 +46,11 @@ func (p *BufferPool) victim(size int) error {
 		}
 	}
 
-	s := p.objects[key].getSize()
-	p.deleteKey(key)
+	s := p.buffers[key].getSize()
+	p.deAllocate(key)
 	return p.victim(size - s)
 }
 
-func (p *BufferPool) newBuffer(ctx context.Context, key string) (*buffer, error) {
-	f, err := p.fs.ReadFile(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	info, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	size := int(info.Size())
-	available := p.available()
-	if available < size {
-		if err := p.victim(size - available); err != nil {
-			return nil, err
-		}
-	}
-
-	b, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return &buffer{
-		data:       b,
-		lastAccess: time.Now(),
-		pinCount:   0,
-		key:        key,
-		dirty:      false,
-	}, nil
+func (p *BufferPool) flush(size int) error {
+	return p.victim(size - p.available())
 }

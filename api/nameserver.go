@@ -16,7 +16,7 @@ func NewNameServer(svc *nodepool.NodePool) *nameserver {
 		svc:            svc,
 	}
 
-	c.router.Head("/*")
+	c.router.Head("/*", c.headObject)
 	c.router.Get("/", c.listObject)
 	c.router.Get("/*", c.getObject)
 	c.router.Post("/*", c.putObject)
@@ -72,6 +72,15 @@ func (c *nameserver) putObject(ctx *fiber.Ctx) error {
 
 func (c *nameserver) deleteObject(ctx *fiber.Ctx) error {
 	if err := c.svc.DeleteObject(ctx.Path()); err != nil {
+		return err
+	}
+
+	return ctx.Status(fiber.StatusOK).SendString("OK")
+}
+
+func (c *nameserver) headObject(ctx *fiber.Ctx) error {
+	_, err := c.svc.GetMetadata(ctx.Path())
+	if err != nil {
 		return err
 	}
 

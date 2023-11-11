@@ -1,32 +1,35 @@
 package datanode
 
 import (
-	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/qwp0905/go-object-storage/internal/filesystem"
+	"github.com/qwp0905/go-object-storage/internal/bufferpool"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
+	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/valyala/fasthttp"
 	"gopkg.in/yaml.v2"
 )
 
 type DataNode struct {
-	fs   *filesystem.FileSystem
-	base string
-	id   string
+	noCopy nocopy.NoCopy
+	bp     *bufferpool.BufferPool
+	base   string
+	id     string
+	config *config
 }
 
 type config struct {
-	Id         string `yaml:"id" json:"id"`
-	Host       string `yaml:"host" json:"host"`
+	Id         string `yaml:"id"`
+	Host       string `yaml:"host"`
 	BaseDir    string `yaml:"base_dir"`
-	NameServer string `yaml:"name_server"`
-	Port       uint   `yaml:"port" json:"port"`
+	NameServer string `yaml:"nameserver"`
+	Port       uint   `yaml:"port"`
 }
 
 func (c *config) setDefault() {
@@ -41,38 +44,41 @@ func (c *config) setDefault() {
 	}
 }
 
-func NewDataNode(ctx context.Context, path string) (*DataNode, error) {
-	fs := filesystem.NewFileSystem()
-	f, err := fs.ReadFile(ctx, path)
+func NewDataNode(path string, bp *bufferpool.BufferPool) (*DataNode, uint, error) {
+	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
+	defer f.Close()
 
 	cfg := new(config)
 	if err := yaml.NewDecoder(f).Decode(cfg); err != nil {
-		return nil, err
+		return nil, 0, errors.WithStack(err)
 	}
 
 	cfg.setDefault()
 
 	b, err := yaml.Marshal(cfg)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	if _, err := fs.WriteFile(path, bytes.NewBuffer(b)); err != nil {
-		return nil, err
+	u, err := os.Create(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer u.Close()
+
+	if _, err := u.Write(b); err != nil {
+		return nil, 0, errors.WithStack(err)
 	}
 
-	for i := 0; i < 5; i++ {
-		err = register(cfg)
-		if err != nil {
-			return &DataNode{id: cfg.Id, base: cfg.BaseDir, fs: fs}, nil
-		}
-		logger.Warnf("%+v", err)
-	}
-
-	return nil, err
+	return &DataNode{
+		id:     cfg.Id,
+		base:   cfg.BaseDir,
+		bp:     bp,
+		config: cfg,
+	}, cfg.Port, nil
 }
 
 func (d *DataNode) getMetaKey(key string) string {
@@ -92,6 +98,26 @@ func generateKey() string {
 	return id.String()
 }
 
+func (d *DataNode) Register() error {
+	var err error
+	for i := 0; i < 5; i++ {
+		time.Sleep(time.Second)
+		err = register(d.config)
+		if err == nil {
+			logger.Info("datanode registered")
+			return nil
+		}
+		logger.Warnf("%+v", err)
+	}
+	panic(err)
+}
+
+type registerBody struct {
+	Id   string `json:"id"`
+	Host string `json:"host"`
+	Port uint   `json:"port"`
+}
+
 func register(cfg *config) error {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
@@ -100,15 +126,20 @@ func register(cfg *config) error {
 
 	req.Header.SetMethod(fasthttp.MethodPost)
 	req.SetRequestURI(fmt.Sprintf("http://%s/node/register", cfg.NameServer))
+	req.Header.SetContentType("application/json")
 
-	b, err := json.Marshal(cfg)
+	b, err := json.Marshal(&registerBody{
+		Id:   cfg.Id,
+		Host: cfg.Host,
+		Port: cfg.Port,
+	})
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	req.SetBody(b)
 
 	if err := fasthttp.Do(req, res); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	if res.StatusCode() != fasthttp.StatusOK {
