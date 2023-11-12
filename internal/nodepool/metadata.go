@@ -10,14 +10,14 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func (p *NodePool) getMetadata(host string, key string) (*datanode.Metadata, error) {
+func (p *NodePool) GetMetadata(id string, key string) (*datanode.Metadata, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodGet)
-	req.SetRequestURI(p.getMetaHost(host, key))
+	req.SetRequestURI(p.getMetaHost(id, key))
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
@@ -38,14 +38,14 @@ func (p *NodePool) getMetadata(host string, key string) (*datanode.Metadata, err
 	return data, nil
 }
 
-func (p *NodePool) putMetadata(host string, metadata *datanode.Metadata) error {
+func (p *NodePool) PutMetadata(id string, metadata *datanode.Metadata) error {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodPut)
-	req.SetRequestURI(p.getMetaHost(host, ""))
+	req.SetRequestURI(p.getMetaHost(id, ""))
 	req.Header.SetContentType("application/json")
 
 	b, err := json.Marshal(metadata)
@@ -67,14 +67,14 @@ func (p *NodePool) putMetadata(host string, metadata *datanode.Metadata) error {
 	return nil
 }
 
-func (p *NodePool) deleteMetadata(host string, key string) error {
+func (p *NodePool) DeleteMetadata(id string, key string) error {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodDelete)
-	req.SetRequestURI(p.getMetaHost(host, key))
+	req.SetRequestURI(p.getMetaHost(id, key))
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {

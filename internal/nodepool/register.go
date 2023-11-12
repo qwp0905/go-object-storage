@@ -7,7 +7,7 @@ import (
 )
 
 func (p *NodePool) Register(id string, host string) error {
-	_, err := p.getMetadata(host, p.rootKey)
+	_, err := p.GetMetadata(host, p.rootKey)
 	if err == nil {
 		if p.root != nil && p.root.Id != id {
 			return errors.New("root node already registered")

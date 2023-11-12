@@ -84,7 +84,7 @@ func (c *nameNode) deleteObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameNode) headObject(ctx *fiber.Ctx) error {
-	if _, err := c.svc.GetMetadata(c.getPath(ctx)); err != nil {
+	if _, err := c.svc.HeadObject(c.getPath(ctx)); err != nil {
 		return err
 	}
 

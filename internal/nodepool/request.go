@@ -25,7 +25,7 @@ func counter() func(int) int {
 	}
 }
 
-func (p *NodePool) putDirect(metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error) {
+func (p *NodePool) PutDirect(metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
@@ -53,7 +53,7 @@ func (p *NodePool) putDirect(metadata *datanode.Metadata, r io.Reader) (*datanod
 	return data, nil
 }
 
-func (p *NodePool) getDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error) {
+func (p *NodePool) GetDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error) {
 	req := fasthttp.AcquireRequest()
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
@@ -75,7 +75,7 @@ func (p *NodePool) getDirect(ctx context.Context, metadata *datanode.Metadata) (
 	return res.BodyStream(), nil
 }
 
-func (p *NodePool) deleteDirect(metadata *datanode.Metadata) error {
+func (p *NodePool) DeleteDirect(metadata *datanode.Metadata) error {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
@@ -106,6 +106,6 @@ func (p *NodePool) getDataHost(metadata *datanode.Metadata) string {
 	return fmt.Sprintf("http://%s/data/%s", p.getNodeHost(metadata.NodeId), metadata.Source)
 }
 
-func (p *NodePool) getMetaHost(host string, key string) string {
-	return fmt.Sprintf("http://%s/meta%s", host, key)
+func (p *NodePool) getMetaHost(id string, key string) string {
+	return fmt.Sprintf("http://%s/meta%s", p.getNodeHost(id), key)
 }

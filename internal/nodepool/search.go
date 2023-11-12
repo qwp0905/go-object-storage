@@ -16,11 +16,11 @@ func (p *NodePool) search(id, key string, metadata *datanode.Metadata) (string, 
 	}
 
 	for _, next := range metadata.NextNodes {
-		if !strings.HasPrefix(next.Key, key) {
+		if !strings.HasPrefix(key, next.Key) {
 			continue
 		}
 
-		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), key)
+		nextMeta, err := p.GetMetadata(p.getNodeHost(next.NodeId), key)
 		if err != nil {
 			return "", nil, err
 		}
@@ -41,7 +41,7 @@ func (p *NodePool) listSearch(key string, limit int, metadata *datanode.Metadata
 			continue
 		}
 
-		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), next.Key)
+		nextMeta, err := p.GetMetadata(p.getNodeHost(next.NodeId), next.Key)
 		if err != nil {
 			return nil, err
 		}
@@ -60,12 +60,12 @@ func (p *NodePool) listSearch(key string, limit int, metadata *datanode.Metadata
 	return out, nil
 }
 
-func (p *NodePool) GetMetadata(key string) (*datanode.Metadata, error) {
+func (p *NodePool) HeadObject(key string) (*datanode.Metadata, error) {
 	if len(p.nodeInfo) == 0 {
 		return nil, errors.New("no host registered...")
 	}
 
-	root, err := p.getRootMetadata()
+	root, err := p.GetRootMetadata()
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +79,12 @@ func (p *NodePool) GetMetadata(key string) (*datanode.Metadata, error) {
 }
 
 func (p *NodePool) GetObject(ctx context.Context, key string) (io.Reader, error) {
-	metadata, err := p.GetMetadata(key)
+	metadata, err := p.HeadObject(key)
 	if err != nil {
 		return nil, err
 	}
 
-	return p.getDirect(ctx, metadata)
+	return p.GetDirect(ctx, metadata)
 }
 
 func (p *NodePool) ListObject(prefix string, limit int) ([]*datanode.Metadata, error) {
@@ -92,7 +92,7 @@ func (p *NodePool) ListObject(prefix string, limit int) ([]*datanode.Metadata, e
 		return nil, errors.New("no host registered...")
 	}
 
-	root, err := p.getRootMetadata()
+	root, err := p.GetRootMetadata()
 	if err != nil {
 		return nil, err
 	}

@@ -33,7 +33,7 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 			continue
 		}
 
-		nextMeta, err := p.getMetadata(p.getNodeHost(next.NodeId), next.Key)
+		nextMeta, err := p.GetMetadata(p.getNodeHost(next.NodeId), next.Key)
 		if err != nil {
 			return err
 		}
@@ -47,14 +47,14 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 			}
 
 			r := p.getNodeToSave()
-			if err := p.putMetadata(r.Host, newChild); err != nil {
+			if err := p.PutMetadata(r.Host, newChild); err != nil {
 				return err
 			}
 			nextMeta.NextNodes = []*datanode.NextRoute{{
 				NodeId: r.Id,
 				Key:    matched,
 			}}
-			if err := p.putMetadata(p.getNodeHost(next.NodeId), nextMeta); err != nil {
+			if err := p.PutMetadata(p.getNodeHost(next.NodeId), nextMeta); err != nil {
 				return err
 			}
 		}
@@ -62,7 +62,7 @@ func (p *NodePool) reorderMetadata(id string, current *datanode.Metadata, saved 
 	}
 
 	current.NextNodes = append(current.NextNodes, saved)
-	return p.putMetadata(p.getNodeHost(id), current)
+	return p.PutMetadata(p.getNodeHost(id), current)
 }
 
 func (p *NodePool) PutObject(key string, size int, r io.Reader) error {
@@ -70,7 +70,7 @@ func (p *NodePool) PutObject(key string, size int, r io.Reader) error {
 		return errors.New("no host registered...")
 	}
 
-	root, err := p.getRootMetadata()
+	root, err := p.GetRootMetadata()
 	if err != nil {
 		return err
 	}
@@ -82,11 +82,11 @@ func (p *NodePool) PutObject(key string, size int, r io.Reader) error {
 		metadata.Size = uint(size)
 		metadata.LastModified = time.Now()
 
-		if _, err := p.putDirect(metadata, r); err != nil {
+		if _, err := p.PutDirect(metadata, r); err != nil {
 			return err
 		}
 
-		return p.putMetadata(p.getNodeHost(id), metadata)
+		return p.PutMetadata(p.getNodeHost(id), metadata)
 	} else {
 		node := p.getNodeToSave()
 		metadata = &datanode.Metadata{
@@ -97,12 +97,12 @@ func (p *NodePool) PutObject(key string, size int, r io.Reader) error {
 			LastModified: time.Now(),
 			NextNodes:    []*datanode.NextRoute{},
 		}
-		if _, err := p.putDirect(metadata, r); err != nil {
+		if _, err := p.PutDirect(metadata, r); err != nil {
 			return err
 		}
 
 		metadataNode := p.getNodeToSave()
-		if err := p.putMetadata(p.getNodeHost(metadataNode.Id), metadata); err != nil {
+		if err := p.PutMetadata(p.getNodeHost(metadataNode.Id), metadata); err != nil {
 			return err
 		}
 		return p.reorderMetadata(p.root.Id, root, &datanode.NextRoute{NodeId: metadataNode.Id, Key: key})

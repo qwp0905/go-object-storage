@@ -7,7 +7,7 @@ func (p *NodePool) DeleteObject(key string) error {
 		return errors.New("no host registered...")
 	}
 
-	root, err := p.getRootMetadata()
+	root, err := p.GetRootMetadata()
 	if err != nil {
 		return err
 	}
@@ -17,9 +17,9 @@ func (p *NodePool) DeleteObject(key string) error {
 		return err
 	}
 
-	if err := p.deleteDirect(metadata); err != nil {
+	if err := p.DeleteDirect(metadata); err != nil {
 		return err
 	}
 
-	return p.deleteMetadata(p.getNodeHost(id), key)
+	return p.DeleteMetadata(p.getNodeHost(id), key)
 }

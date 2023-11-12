@@ -41,6 +41,18 @@ func (p *NodePool) getNodeToSave() *NodeInfo {
 	return nil
 }
 
+func (p *NodePool) AcquireNode() string {
+	i := 0
+	c := p.counter(len(p.nodeInfo))
+	for k := range p.nodeInfo {
+		if c == i {
+			return k
+		}
+		i++
+	}
+	return ""
+}
+
 func NewNodePool() *NodePool {
 	return &NodePool{
 		client:   &fasthttp.Client{},
@@ -52,20 +64,20 @@ func NewNodePool() *NodePool {
 	}
 }
 
-func (p *NodePool) getRootMetadata() (*datanode.Metadata, error) {
+func (p *NodePool) GetRootMetadata() (*datanode.Metadata, error) {
 	if p.root != nil {
-		return p.getMetadata(p.root.Host, p.rootKey)
+		return p.GetMetadata(p.root.Host, p.rootKey)
 	}
 
 	if err := p.findRoot(); err == nil {
-		return p.getMetadata(p.root.Host, p.rootKey)
+		return p.GetMetadata(p.root.Host, p.rootKey)
 	}
 
 	if err := p.createRoot(); err != nil {
 		return nil, err
 	}
 
-	return p.getMetadata(p.root.Host, p.rootKey)
+	return p.GetMetadata(p.root.Host, p.rootKey)
 }
 
 func (p *NodePool) createRoot() error {
@@ -75,7 +87,7 @@ func (p *NodePool) createRoot() error {
 		NextNodes: []*datanode.NextRoute{},
 	}
 
-	if err := p.putMetadata(root.Host, rootMeta); err != nil {
+	if err := p.PutMetadata(root.Host, rootMeta); err != nil {
 		return err
 	}
 	p.root = root
@@ -85,7 +97,7 @@ func (p *NodePool) createRoot() error {
 
 func (p *NodePool) findRoot() error {
 	for _, v := range p.nodeInfo {
-		if _, err := p.getMetadata(v.Host, p.rootKey); err != nil {
+		if _, err := p.GetMetadata(v.Host, p.rootKey); err != nil {
 			continue
 		}
 		p.root = &NodeInfo{Host: v.Host, Id: v.Id}
