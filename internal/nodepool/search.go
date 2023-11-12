@@ -30,7 +30,7 @@ func (p *NodePool) search(id, key string, metadata *datanode.Metadata) (string, 
 	return "", nil, fiber.ErrNotFound
 }
 
-func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datanode.Metadata, error) {
+func (p *NodePool) listSearch(key string, limit int, metadata *datanode.Metadata) ([]*datanode.Metadata, error) {
 	out := []*datanode.Metadata{}
 	if metadata.FileExists() {
 		out = append(out, metadata)
@@ -45,11 +45,16 @@ func (p *NodePool) listSearch(key string, metadata *datanode.Metadata) ([]*datan
 		if err != nil {
 			return nil, err
 		}
-		r, err := p.listSearch(key, nextMeta)
+		r, err := p.listSearch(key, limit, nextMeta)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, r...)
+		for _, v := range r {
+			if len(out) == limit {
+				return out, nil
+			}
+			out = append(out, v)
+		}
 	}
 
 	return out, nil
@@ -82,7 +87,7 @@ func (p *NodePool) GetObject(ctx context.Context, key string) (io.Reader, error)
 	return p.getDirect(ctx, metadata)
 }
 
-func (p *NodePool) ListObject(prefix string) ([]*datanode.Metadata, error) {
+func (p *NodePool) ListObject(prefix string, limit int) ([]*datanode.Metadata, error) {
 	if len(p.nodeInfo) == 0 {
 		return nil, errors.New("no host registered...")
 	}
@@ -92,5 +97,5 @@ func (p *NodePool) ListObject(prefix string) ([]*datanode.Metadata, error) {
 		return nil, err
 	}
 
-	return p.listSearch(prefix, root)
+	return p.listSearch(prefix, limit, root)
 }

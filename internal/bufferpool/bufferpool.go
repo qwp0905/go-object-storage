@@ -2,7 +2,6 @@ package bufferpool
 
 import (
 	"io"
-	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
@@ -19,28 +18,24 @@ const (
 )
 
 type BufferPool struct {
-	noCopy   nocopy.NoCopy
-	fs       *filesystem.FileSystem
-	locker   *sync.Mutex
-	pages    map[string]*page
-	maxSize  int
-	accessed *queue
+	noCopy  nocopy.NoCopy
+	fs      *filesystem.FileSystem
+	maxSize int
+	table   *pageTable
 }
 
 func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
 	return &BufferPool{
-		fs:       fs,
-		locker:   new(sync.Mutex),
-		maxSize:  maxSize,
-		pages:    make(map[string]*page),
-		accessed: newQueue(),
+		fs:      fs,
+		maxSize: maxSize,
+		table:   newPageTable(),
 	}
 }
 
 func (p *BufferPool) Get(key string) (io.Reader, error) {
-	bp, ok := p.pages[key]
+	page, ok := p.table.get(key)
 	if ok {
-		return bp.getData(), nil
+		return page.getData(), nil
 	}
 
 	f, err := p.fs.ReadFile(key)
@@ -57,53 +52,48 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 		return nil, err
 	}
 
-	bp = emptyPage(key)
-	if err := bp.putData(f); err != nil {
+	page = emptyPage(key)
+	if err := page.putData(f); err != nil {
 		return nil, err
 	}
-	p.allocate(bp)
 
-	return bp.getData(), nil
+	p.table.allocate(page)
+	return page.getData(), nil
 }
 
 func (p *BufferPool) Put(key string, size int, r io.Reader) error {
-	bp, ok := p.pages[key]
+	page, ok := p.table.get(key)
 	if ok {
-		size = size - bp.getSize()
+		size -= page.getSize()
 	}
 
 	if err := p.flush(size); err != nil {
 		return err
 	}
 
-	bp = emptyPage(key)
-	bp.setDirty()
-	if err := bp.putData(r); err != nil {
+	page = emptyPage(key)
+	page.setDirty()
+	if err := page.putData(r); err != nil {
 		return err
 	}
-	p.allocate(bp)
-
+	p.table.allocate(page)
 	return nil
 }
 
 func (p *BufferPool) Delete(key string) error {
-	if _, ok := p.pages[key]; ok {
-		p.deAllocate(key)
-	}
-
+	p.table.deAllocate(key)
 	return p.fs.RemoveFile(key)
 }
 
 func (p *BufferPool) FlushAll() error {
-	for k, v := range p.pages {
-		if !v.isDirty() {
+	for _, page := range p.table.toList() {
+		if !page.isDirty() {
 			continue
 		}
-
-		if _, err := p.fs.WriteFile(k, v.getData()); err != nil {
+		if _, err := p.fs.WriteFile(page.key, page.getData()); err != nil {
 			return err
 		}
-		v.clear()
+		page.clearDirty()
 	}
 	return nil
 }

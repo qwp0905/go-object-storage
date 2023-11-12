@@ -9,8 +9,8 @@ services:
       mode: global
       resources:
         limits:
-          cpus: "0.06"
-          memory: 128M
+          cpus: "1"
+          memory: 1024M
     ports:
       - protocol: tcp
         target: 8080
@@ -27,13 +27,13 @@ services:
       mode: global
       resources:
         limits:
-          cpus: "0.06"
-          memory: 128M
+          cpus: "0.1"
+          memory: 256M
     ports:
       - protocol: tcp
         target: 8080
         published: 8081
-    stop_grace_period: "5s"
+    stop_grace_period: "10s"
     volumes:
       - type: bind
         source: .data/1.yaml

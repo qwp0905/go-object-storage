@@ -82,6 +82,7 @@ func FromCtx(ctx *fiber.Ctx, err error) {
 		Query:   string(ctx.Request().URI().QueryString()),
 		Body:    string(ctx.Body()),
 		Level:   "error",
+		Method:  ctx.Method(),
 	}
 	b, _ := json.Marshal(l)
 	stderr.Println(string(b))
@@ -94,4 +95,5 @@ type ctxLog struct {
 	Query   string    `json:"query"`
 	Path    string    `json:"path"`
 	Body    string    `json:"body"`
+	Method  string    `json:"method"`
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
@@ -14,8 +13,7 @@ type page struct {
 	noCopy     nocopy.NoCopy
 	data       []byte
 	key        string
-	lastAccess time.Time
-	pinCount   int
+	lastAccess *element
 	dirty      bool
 	locker     *sync.Mutex
 }
@@ -23,18 +21,15 @@ type page struct {
 func emptyPage(key string) *page {
 	return &page{
 		key:        key,
-		pinCount:   0,
 		locker:     new(sync.Mutex),
 		dirty:      false,
-		lastAccess: time.Now(),
+		lastAccess: &element{value: key},
 	}
 }
 
 func (bp *page) getData() *bytes.Reader {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
-	bp.lastAccess = time.Now()
-	bp.pinCount++
 	return bytes.NewReader(bp.data)
 }
 
@@ -56,10 +51,17 @@ func (bp *page) setDirty() {
 	bp.dirty = true
 }
 
-func (bp *page) clear() {
+func (bp *page) clearDirty() {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
 	bp.dirty = false
+}
+
+func (bp *page) clear() {
+	bp.locker.Lock()
+	defer bp.locker.Unlock()
+	bp.data = nil
+	bp.lastAccess = nil
 }
 
 func (bp *page) putData(r io.Reader) error {
@@ -75,6 +77,5 @@ func (bp *page) putData(r io.Reader) error {
 	}
 
 	bp.data = b
-	bp.lastAccess = time.Now()
 	return nil
 }

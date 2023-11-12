@@ -44,7 +44,7 @@ type listObjectResponse struct {
 }
 
 func (c *nameserver) listObject(ctx *fiber.Ctx) error {
-	list, err := c.svc.ListObject(ctx.Query("prefix"))
+	list, err := c.svc.ListObject(ctx.Query("prefix"), ctx.QueryInt("limit", 1000))
 	if err != nil {
 		return err
 	}
