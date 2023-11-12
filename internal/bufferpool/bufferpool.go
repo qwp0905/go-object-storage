@@ -19,24 +19,26 @@ const (
 )
 
 type BufferPool struct {
-	noCopy  nocopy.NoCopy
-	fs      *filesystem.FileSystem
-	locker  *sync.Mutex
-	buffers map[string]*buffer
-	maxSize int
+	noCopy   nocopy.NoCopy
+	fs       *filesystem.FileSystem
+	locker   *sync.Mutex
+	pages    map[string]*page
+	maxSize  int
+	accessed *queue
 }
 
 func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
 	return &BufferPool{
-		fs:      fs,
-		locker:  new(sync.Mutex),
-		maxSize: maxSize,
-		buffers: make(map[string]*buffer),
+		fs:       fs,
+		locker:   new(sync.Mutex),
+		maxSize:  maxSize,
+		pages:    make(map[string]*page),
+		accessed: newQueue(),
 	}
 }
 
 func (p *BufferPool) Get(key string) (io.Reader, error) {
-	bp, ok := p.buffers[key]
+	bp, ok := p.pages[key]
 	if ok {
 		return bp.getData(), nil
 	}
@@ -55,7 +57,7 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 		return nil, err
 	}
 
-	bp = emptyBuffer(key)
+	bp = emptyPage(key)
 	if err := bp.putData(f); err != nil {
 		return nil, err
 	}
@@ -65,7 +67,7 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 }
 
 func (p *BufferPool) Put(key string, size int, r io.Reader) error {
-	bp, ok := p.buffers[key]
+	bp, ok := p.pages[key]
 	if ok {
 		size = size - bp.getSize()
 	}
@@ -74,7 +76,7 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 		return err
 	}
 
-	bp = emptyBuffer(key)
+	bp = emptyPage(key)
 	bp.setDirty()
 	if err := bp.putData(r); err != nil {
 		return err
@@ -85,7 +87,7 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 }
 
 func (p *BufferPool) Delete(key string) error {
-	if _, ok := p.buffers[key]; ok {
+	if _, ok := p.pages[key]; ok {
 		p.deAllocate(key)
 	}
 
@@ -93,7 +95,7 @@ func (p *BufferPool) Delete(key string) error {
 }
 
 func (p *BufferPool) FlushAll() error {
-	for k, v := range p.buffers {
+	for k, v := range p.pages {
 		if !v.isDirty() {
 			continue
 		}

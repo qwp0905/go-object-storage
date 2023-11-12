@@ -10,7 +10,7 @@ import (
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
 
-type buffer struct {
+type page struct {
 	noCopy     nocopy.NoCopy
 	data       []byte
 	key        string
@@ -20,8 +20,8 @@ type buffer struct {
 	locker     *sync.Mutex
 }
 
-func emptyBuffer(key string) *buffer {
-	return &buffer{
+func emptyPage(key string) *page {
+	return &page{
 		key:        key,
 		pinCount:   0,
 		locker:     new(sync.Mutex),
@@ -30,7 +30,7 @@ func emptyBuffer(key string) *buffer {
 	}
 }
 
-func (bp *buffer) getData() *bytes.Reader {
+func (bp *page) getData() *bytes.Reader {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
 	bp.lastAccess = time.Now()
@@ -38,31 +38,31 @@ func (bp *buffer) getData() *bytes.Reader {
 	return bytes.NewReader(bp.data)
 }
 
-func (bp *buffer) getSize() int {
+func (bp *page) getSize() int {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
 	return len(bp.data)
 }
 
-func (bp *buffer) isDirty() bool {
+func (bp *page) isDirty() bool {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
 	return bp.dirty
 }
 
-func (bp *buffer) setDirty() {
+func (bp *page) setDirty() {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
 	bp.dirty = true
 }
 
-func (bp *buffer) clear() {
+func (bp *page) clear() {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
 	bp.dirty = false
 }
 
-func (bp *buffer) putData(r io.Reader) error {
+func (bp *page) putData(r io.Reader) error {
 	bp.locker.Lock()
 	defer bp.locker.Unlock()
 	b, err := io.ReadAll(r)
