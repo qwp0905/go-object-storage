@@ -26,11 +26,11 @@ type DataNode struct {
 }
 
 type config struct {
-	Id         string `yaml:"id"`
-	Host       string `yaml:"host"`
-	BaseDir    string `yaml:"base_dir"`
-	NameServer string `yaml:"nameserver"`
-	Port       uint   `yaml:"port"`
+	Id       string `yaml:"id"`
+	Host     string `yaml:"host"`
+	BaseDir  string `yaml:"base_dir"`
+	NameNode string `yaml:"namenode"`
+	Port     uint   `yaml:"port"`
 }
 
 func (c *config) setDefault() {
@@ -107,7 +107,7 @@ func register(cfg *config) error {
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodPost)
-	req.SetRequestURI(fmt.Sprintf("http://%s/node/register", cfg.NameServer))
+	req.SetRequestURI(fmt.Sprintf("http://%s/node/register", cfg.NameNode))
 	req.Header.SetContentType("application/json")
 
 	b, err := json.Marshal(&registerBody{

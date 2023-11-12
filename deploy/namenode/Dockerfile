@@ -17,7 +17,7 @@ COPY pkg/ pkg/
 RUN CGO_ENABLED=0 \
   GOOS=${TARGETOS:-linux} \
   GOARCH=${TARGETARCH} \
-  go build -a -o execute cmd/nameserver/main.go
+  go build -a -o execute cmd/namenode/main.go
 
 FROM debian:bookworm-20230919-slim
 

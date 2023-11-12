@@ -1,9 +1,9 @@
 services:
-  nameserver:
+  namenode:
     build:
       context: .
-      dockerfile: deploy/nameserver/Dockerfile
-    container_name: nameserver
+      dockerfile: deploy/namenode/Dockerfile
+    container_name: namenode
     command: ["--addr", "8080"]
     deploy:
       mode: global
@@ -17,7 +17,7 @@ services:
         published: 8080
 
   datanode1:
-    depends_on: ["nameserver"]
+    depends_on: ["namenode"]
     build:
       context: .
       dockerfile: deploy/datanode/Dockerfile
@@ -38,3 +38,19 @@ services:
       - type: bind
         source: .data/1.yaml
         target: /var/lib/datanode/config.yaml
+
+  # redis:
+  #   image: redis:7.0
+  #   container_name: redis
+  #   deploy:
+  #     mode: global
+  #     resources:
+  #       limits:
+  #         cpus: "2"
+  #         memory: "0.5G"
+  #   ports:
+  #     - protocol: tcp
+  #       target: 6379
+  #       published: 6379
+  #   environment:
+  #     TZ: Asia/Seoul

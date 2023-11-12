@@ -7,13 +7,13 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
 )
 
-type nameserver struct {
+type nameNode struct {
 	*controllerImpl
 	svc *nodepool.NodePool
 }
 
-func NewNameServer(svc *nodepool.NodePool) *nameserver {
-	c := &nameserver{
+func NewNameNode(svc *nodepool.NodePool) *nameNode {
+	c := &nameNode{
 		controllerImpl: New("/api"),
 		svc:            svc,
 	}
@@ -28,7 +28,7 @@ func NewNameServer(svc *nodepool.NodePool) *nameserver {
 	return c
 }
 
-func (c *nameserver) getObject(ctx *fiber.Ctx) error {
+func (c *nameNode) getObject(ctx *fiber.Ctx) error {
 	obj, err := c.svc.GetObject(ctx.Context(), c.getPath(ctx))
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ type listObjectResponse struct {
 	LastModified time.Time `json:"last_modified"`
 }
 
-func (c *nameserver) listObject(ctx *fiber.Ctx) error {
+func (c *nameNode) listObject(ctx *fiber.Ctx) error {
 	list, err := c.svc.ListObject(ctx.Query("prefix"), ctx.QueryInt("limit", 1000))
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (c *nameserver) listObject(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(out)
 }
 
-func (c *nameserver) putObject(ctx *fiber.Ctx) error {
+func (c *nameNode) putObject(ctx *fiber.Ctx) error {
 	body := ctx.Request().BodyStream()
 	if body == nil {
 		return fiber.ErrBadRequest
@@ -75,7 +75,7 @@ func (c *nameserver) putObject(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).SendString("OK")
 }
 
-func (c *nameserver) deleteObject(ctx *fiber.Ctx) error {
+func (c *nameNode) deleteObject(ctx *fiber.Ctx) error {
 	if err := c.svc.DeleteObject(c.getPath(ctx)); err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (c *nameserver) deleteObject(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).SendString("OK")
 }
 
-func (c *nameserver) headObject(ctx *fiber.Ctx) error {
+func (c *nameNode) headObject(ctx *fiber.Ctx) error {
 	if _, err := c.svc.GetMetadata(c.getPath(ctx)); err != nil {
 		return err
 	}

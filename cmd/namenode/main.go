@@ -22,7 +22,7 @@ func main() {
 	nodePool := nodepool.NewNodePool()
 
 	healthController := api.NewHealth()
-	apiController := api.NewNameServer(nodePool)
+	apiController := api.NewNameNode(nodePool)
 	nodeController := api.NewNode(nodePool)
 
 	app = http.NewApplication(
