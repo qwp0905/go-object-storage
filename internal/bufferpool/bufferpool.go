@@ -32,6 +32,7 @@ func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
 	}
 }
 
+// TODO max memory보다 파일이 큰경우에 대한 처리 추가 필요
 func (p *BufferPool) Get(key string) (io.Reader, error) {
 	page, ok := p.table.get(key)
 	if ok {
