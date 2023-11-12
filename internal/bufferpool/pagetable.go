@@ -90,9 +90,9 @@ type queue struct {
 
 func newQueue() *queue {
 	q := &queue{len: 0}
-	(&q.root).next = &q.root
-	(&q.root).prev = &q.root
-	(&q.root).list = q
+	q.root.next = &q.root
+	q.root.prev = &q.root
+	q.root.list = q
 	return q
 }
 

@@ -1,7 +1,11 @@
 package bufferpool
 
 func (p *BufferPool) available() int {
-	return int(p.maxSize) - p.table.allocated
+	return p.maxSize - p.table.allocated
+}
+
+func (p *BufferPool) isAvailable(size int) bool {
+	return p.maxSize/2 > size
 }
 
 func (p *BufferPool) victim(size int) error {

@@ -43,10 +43,15 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	info, err := f.Stat()
 	if err != nil {
 		return nil, errors.WithStack(err)
+	}
+
+	if !p.isAvailable(int(info.Size())) {
+		return f, nil
 	}
 
 	if err := p.flush(int(info.Size())); err != nil {
@@ -63,6 +68,13 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 }
 
 func (p *BufferPool) Put(key string, size int, r io.Reader) error {
+	if !p.isAvailable(size) {
+		if _, err := p.fs.WriteFile(key, r); err != nil {
+			return err
+		}
+
+		return nil
+	}
 	page, ok := p.table.get(key)
 	if ok {
 		size -= page.getSize()
