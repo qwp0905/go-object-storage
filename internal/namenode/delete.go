@@ -15,15 +15,15 @@ func (n *NameNode) delete(id, key string, metadata *datanode.Metadata) (*datanod
 			return nil, nil
 		}
 
-		metadata = &datanode.Metadata{
+		updated := &datanode.Metadata{
 			Key:       metadata.Key,
 			NextNodes: metadata.NextNodes,
 		}
-		if err := n.pool.PutMetadata(id, metadata); err != nil {
+		if err := n.pool.PutMetadata(id, updated); err != nil {
 			return nil, err
 		}
 
-		return metadata, nil
+		return updated, nil
 	}
 
 	for i, next := range metadata.NextNodes {
