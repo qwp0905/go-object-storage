@@ -15,33 +15,33 @@ type page struct {
 	key        string
 	lastAccess *element
 	dirty      bool
-	locker     *sync.Mutex
+	locker     *sync.RWMutex
 }
 
 func emptyPage(key string) *page {
 	return &page{
 		key:        key,
-		locker:     new(sync.Mutex),
+		locker:     new(sync.RWMutex),
 		dirty:      false,
 		lastAccess: &element{value: key},
 	}
 }
 
 func (bp *page) getData() *bytes.Reader {
-	bp.locker.Lock()
-	defer bp.locker.Unlock()
+	bp.locker.RLock()
+	defer bp.locker.RUnlock()
 	return bytes.NewReader(bp.data)
 }
 
 func (bp *page) getSize() int {
-	bp.locker.Lock()
-	defer bp.locker.Unlock()
+	bp.locker.RLock()
+	defer bp.locker.RUnlock()
 	return len(bp.data)
 }
 
 func (bp *page) isDirty() bool {
-	bp.locker.Lock()
-	defer bp.locker.Unlock()
+	bp.locker.RLock()
+	defer bp.locker.RUnlock()
 	return bp.dirty
 }
 

@@ -1,10 +1,11 @@
 services:
-  namenode:
+  namenode1:
+    depends_on: ["redis"]
     build:
       context: .
       dockerfile: deploy/namenode/Dockerfile
     container_name: namenode
-    command: ["--addr", "8080"]
+    command: ["--addr", "8080", "--redis", "redis:6379", "--db", "1"]
     deploy:
       mode: global
       resources:
@@ -17,7 +18,7 @@ services:
         published: 8080
 
   datanode1:
-    depends_on: ["namenode"]
+    depends_on: ["namenode1"]
     build:
       context: .
       dockerfile: deploy/datanode/Dockerfile
@@ -33,24 +34,24 @@ services:
       - protocol: tcp
         target: 8080
         published: 8081
-    stop_grace_period: "10s"
+    stop_grace_period: "5s"
     volumes:
       - type: bind
         source: .data/1.yaml
         target: /var/lib/datanode/config.yaml
 
-  # redis:
-  #   image: redis:7.0
-  #   container_name: redis
-  #   deploy:
-  #     mode: global
-  #     resources:
-  #       limits:
-  #         cpus: "2"
-  #         memory: "0.5G"
-  #   ports:
-  #     - protocol: tcp
-  #       target: 6379
-  #       published: 6379
-  #   environment:
-  #     TZ: Asia/Seoul
+  redis:
+    image: redis:7.0
+    container_name: redis
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "2"
+          memory: "0.5G"
+    ports:
+      - protocol: tcp
+        target: 6379
+        published: 6379
+    environment:
+      TZ: Asia/Seoul

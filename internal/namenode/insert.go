@@ -1,6 +1,10 @@
 package namenode
 
-import "github.com/qwp0905/go-object-storage/internal/datanode"
+import (
+	"context"
+
+	"github.com/qwp0905/go-object-storage/internal/datanode"
+)
 
 func compare(a, b string) string {
 	min := len(b)
@@ -18,14 +22,14 @@ func compare(a, b string) string {
 	return out
 }
 
-func (n *NameNode) reorderMetadata(id string, current *datanode.Metadata, saved *datanode.NextRoute) error {
+func (n *NameNode) reorderMetadata(ctx context.Context, id string, current *datanode.Metadata, saved *datanode.NextRoute) error {
 	for _, next := range current.NextNodes {
 		matched := compare(next.Key, saved.Key)
-		if len(matched) <= len(saved.Key) {
+		if len(matched) <= len(current.Key) {
 			continue
 		}
 
-		nextMeta, err := n.pool.GetMetadata(next.NodeId, next.Key)
+		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
 		if err != nil {
 			return err
 		}
@@ -38,21 +42,25 @@ func (n *NameNode) reorderMetadata(id string, current *datanode.Metadata, saved 
 				NextNodes: nextMeta.NextNodes,
 			}
 
-			r := n.pool.AcquireNode()
-			if err := n.pool.PutMetadata(r, newChild); err != nil {
+			newId, err := n.pool.AcquireNode(ctx)
+			if err != nil {
+				return err
+			}
+			if err := n.pool.PutMetadata(ctx, newId, newChild); err != nil {
 				return err
 			}
 			nextMeta.NextNodes = []*datanode.NextRoute{{
-				NodeId: r,
+				NodeId: newId,
 				Key:    matched,
 			}}
-			if err := n.pool.PutMetadata(next.NodeId, nextMeta); err != nil {
+			if err := n.pool.PutMetadata(ctx, next.NodeId, nextMeta); err != nil {
 				return err
 			}
 		}
-		return n.reorderMetadata(next.NodeId, nextMeta, saved)
+		// TODO 이부분 로직 수정 필요 문제 있음
+		return n.reorderMetadata(ctx, next.NodeId, nextMeta, saved)
 	}
 
 	current.NextNodes = append(current.NextNodes, saved)
-	return n.pool.PutMetadata(id, current)
+	return n.pool.PutMetadata(ctx, id, current)
 }

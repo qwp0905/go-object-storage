@@ -4,15 +4,15 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/qwp0905/go-object-storage/internal/nodepool"
+	"github.com/qwp0905/go-object-storage/internal/namenode"
 )
 
 type nameNode struct {
 	*controllerImpl
-	svc *nodepool.NodePool
+	svc *namenode.NameNode
 }
 
-func NewNameNode(svc *nodepool.NodePool) *nameNode {
+func NewNameNode(svc *namenode.NameNode) *nameNode {
 	c := &nameNode{
 		controllerImpl: New("/api"),
 		svc:            svc,
@@ -44,7 +44,7 @@ type listObjectResponse struct {
 }
 
 func (c *nameNode) listObject(ctx *fiber.Ctx) error {
-	list, err := c.svc.ListObject(ctx.Query("prefix"), ctx.QueryInt("limit", 1000))
+	list, err := c.svc.ListObject(ctx.Context(), ctx.Query("prefix"), ctx.QueryInt("limit", 1000))
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (c *nameNode) putObject(ctx *fiber.Ctx) error {
 	}
 	defer ctx.Request().CloseBodyStream()
 
-	if err := c.svc.PutObject(c.getPath(ctx), ctx.Request().Header.ContentLength(), body); err != nil {
+	if err := c.svc.PutObject(ctx.Context(), c.getPath(ctx), ctx.Request().Header.ContentLength(), body); err != nil {
 		return err
 	}
 
@@ -76,7 +76,7 @@ func (c *nameNode) putObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameNode) deleteObject(ctx *fiber.Ctx) error {
-	if err := c.svc.DeleteObject(c.getPath(ctx)); err != nil {
+	if err := c.svc.DeleteObject(ctx.Context(), c.getPath(ctx)); err != nil {
 		return err
 	}
 
@@ -84,7 +84,7 @@ func (c *nameNode) deleteObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameNode) headObject(ctx *fiber.Ctx) error {
-	if _, err := c.svc.HeadObject(c.getPath(ctx)); err != nil {
+	if _, err := c.svc.HeadObject(ctx.Context(), c.getPath(ctx)); err != nil {
 		return err
 	}
 

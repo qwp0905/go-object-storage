@@ -25,14 +25,18 @@ func counter() func(int) int {
 	}
 }
 
-func (p *NodePool) PutDirect(metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error) {
+func (p *NodePool) PutDirect(ctx context.Context, metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error) {
+	host, err := p.GetNodeHost(ctx, metadata.NodeId)
+	if err != nil {
+		return nil, err
+	}
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodPut)
-	req.SetRequestURI(p.getDataHost(metadata))
+	req.SetRequestURI(getDataHost(host, metadata.Source))
 	req.SetBodyStream(r, int(metadata.Size))
 
 	if err := p.client.Do(req, res); err != nil {
@@ -54,12 +58,17 @@ func (p *NodePool) PutDirect(metadata *datanode.Metadata, r io.Reader) (*datanod
 }
 
 func (p *NodePool) GetDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error) {
+	host, err := p.GetNodeHost(ctx, metadata.NodeId)
+	if err != nil {
+		return nil, err
+	}
+
 	req := fasthttp.AcquireRequest()
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
 
 	req.Header.SetMethod(fasthttp.MethodGet)
-	req.SetRequestURI(p.getDataHost(metadata))
+	req.SetRequestURI(getDataHost(host, metadata.Source))
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
@@ -75,14 +84,19 @@ func (p *NodePool) GetDirect(ctx context.Context, metadata *datanode.Metadata) (
 	return res.BodyStream(), nil
 }
 
-func (p *NodePool) DeleteDirect(metadata *datanode.Metadata) error {
+func (p *NodePool) DeleteDirect(ctx context.Context, metadata *datanode.Metadata) error {
+	host, err := p.GetNodeHost(ctx, metadata.NodeId)
+	if err != nil {
+		return err
+	}
+
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodDelete)
-	req.SetRequestURI(p.getDataHost(metadata))
+	req.SetRequestURI(getDataHost(host, metadata.Source))
 
 	if err := p.client.Do(req, res); err != nil {
 		return errors.WithStack(err)
@@ -102,10 +116,10 @@ func release(ctx context.Context, res *fasthttp.Response) {
 	<-ctx.Done()
 }
 
-func (p *NodePool) getDataHost(metadata *datanode.Metadata) string {
-	return fmt.Sprintf("http://%s/data/%s", p.getNodeHost(metadata.NodeId), metadata.Source)
+func getDataHost(host, source string) string {
+	return fmt.Sprintf("http://%s/data/%s", host, source)
 }
 
-func (p *NodePool) getMetaHost(id string, key string) string {
-	return fmt.Sprintf("http://%s/meta%s", p.getNodeHost(id), key)
+func getMetaHost(host, key string) string {
+	return fmt.Sprintf("http://%s/meta%s", host, key)
 }

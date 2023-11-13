@@ -1,106 +1,91 @@
 package nodepool
 
 import (
-	"sync"
+	"context"
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
+	"github.com/redis/go-redis/v9"
 	"github.com/valyala/fasthttp"
 )
 
 type NodePool struct {
-	noCopy   nocopy.NoCopy
-	client   *fasthttp.Client
-	nodeInfo map[string]*NodeInfo
-	root     *NodeInfo
-	rootKey  string
-	locker   *sync.Mutex
-	counter  func(int) int
+	noCopy  nocopy.NoCopy
+	client  *fasthttp.Client
+	root    *NodeInfo
+	rootKey string
+	counter func(int) int
+	rc      *redis.Client
 }
 
 type NodeInfo struct {
-	Id   string `json:"id"`
-	Host string `json:"host"`
+	Id string `json:"id"`
 }
 
-func (p *NodePool) getNodeHost(id string) string {
-	return p.nodeInfo[id].Host
-}
-
-func (p *NodePool) getNodeToSave() *NodeInfo {
-	i := 0
-	c := p.counter(len(p.nodeInfo))
-	for _, v := range p.nodeInfo {
-		if c == i {
-			return v
-		}
-		i++
-	}
-	return nil
-}
-
-func (p *NodePool) AcquireNode() string {
-	i := 0
-	c := p.counter(len(p.nodeInfo))
-	for k := range p.nodeInfo {
-		if c == i {
-			return k
-		}
-		i++
-	}
-	return ""
-}
-
-func NewNodePool() *NodePool {
+func NewNodePool(redisHost string, redisDB int) *NodePool {
 	return &NodePool{
-		client:   &fasthttp.Client{},
-		nodeInfo: make(map[string]*NodeInfo),
-		rootKey:  "/",
-		locker:   new(sync.Mutex),
-		counter:  counter(),
-		root:     nil,
+		client:  &fasthttp.Client{MaxConnsPerHost: 1024},
+		rootKey: "/",
+		counter: counter(),
+		root:    nil,
+		rc:      redis.NewClient(&redis.Options{Addr: redisHost, DB: redisDB}),
 	}
 }
 
-func (p *NodePool) GetRootMetadata() (*datanode.Metadata, error) {
+func (p *NodePool) GetRootId() string {
+	return p.root.Id
+}
+
+func (p *NodePool) GetRootMetadata(ctx context.Context) (*datanode.Metadata, error) {
 	if p.root != nil {
-		return p.GetMetadata(p.root.Host, p.rootKey)
+		return p.GetMetadata(ctx, p.root.Id, p.rootKey)
 	}
 
-	if err := p.findRoot(); err == nil {
-		return p.GetMetadata(p.root.Host, p.rootKey)
+	if err := p.findRoot(ctx); err == nil {
+		return p.GetMetadata(ctx, p.root.Id, p.rootKey)
 	}
 
-	if err := p.createRoot(); err != nil {
+	if err := p.createRoot(ctx); err != nil {
 		return nil, err
 	}
 
-	return p.GetMetadata(p.root.Host, p.rootKey)
+	return p.GetMetadata(ctx, p.root.Id, p.rootKey)
 }
 
-func (p *NodePool) createRoot() error {
-	root := p.getNodeToSave()
+func (p *NodePool) createRoot(ctx context.Context) error {
+	root, err := p.AcquireNode(ctx)
+	if err != nil {
+		return err
+	}
+
 	rootMeta := &datanode.Metadata{
 		Key:       p.rootKey,
 		NextNodes: []*datanode.NextRoute{},
 	}
 
-	if err := p.PutMetadata(root.Host, rootMeta); err != nil {
+	if err := p.PutMetadata(ctx, root, rootMeta); err != nil {
 		return err
 	}
-	p.root = root
-	logger.Infof("datanode id %s host %s registered as root", root.Id, root.Host)
+
+	p.root = &NodeInfo{Id: root}
+
+	logger.Infof("datanode id %s registered as root", root)
 	return nil
 }
 
-func (p *NodePool) findRoot() error {
-	for _, v := range p.nodeInfo {
-		if _, err := p.GetMetadata(v.Host, p.rootKey); err != nil {
+func (p *NodePool) findRoot(ctx context.Context) error {
+	ids, err := p.rc.Keys(ctx, "*").Result()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	for _, id := range ids {
+		if _, err := p.GetMetadata(ctx, id, p.rootKey); err != nil {
 			continue
 		}
-		p.root = &NodeInfo{Host: v.Host, Id: v.Id}
+		p.root = &NodeInfo{Id: id}
 		return nil
 	}
 

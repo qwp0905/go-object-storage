@@ -36,7 +36,7 @@ func main() {
 	metaController := api.NewMeta(node)
 
 	app = http.NewApplication(addr, dataController, metaController)
-	go node.Register()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
 	done := make(chan struct{}, 1)

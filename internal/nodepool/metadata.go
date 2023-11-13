@@ -2,6 +2,7 @@ package nodepool
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,14 +11,19 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func (p *NodePool) GetMetadata(id string, key string) (*datanode.Metadata, error) {
+func (p *NodePool) GetMetadata(ctx context.Context, id, key string) (*datanode.Metadata, error) {
+	host, err := p.GetNodeHost(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodGet)
-	req.SetRequestURI(p.getMetaHost(id, key))
+	req.SetRequestURI(getMetaHost(host, key))
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {
@@ -38,14 +44,19 @@ func (p *NodePool) GetMetadata(id string, key string) (*datanode.Metadata, error
 	return data, nil
 }
 
-func (p *NodePool) PutMetadata(id string, metadata *datanode.Metadata) error {
+func (p *NodePool) PutMetadata(ctx context.Context, id string, metadata *datanode.Metadata) error {
+	host, err := p.GetNodeHost(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodPut)
-	req.SetRequestURI(p.getMetaHost(id, ""))
+	req.SetRequestURI(getMetaHost(host, ""))
 	req.Header.SetContentType("application/json")
 
 	b, err := json.Marshal(metadata)
@@ -67,14 +78,19 @@ func (p *NodePool) PutMetadata(id string, metadata *datanode.Metadata) error {
 	return nil
 }
 
-func (p *NodePool) DeleteMetadata(id string, key string) error {
+func (p *NodePool) DeleteMetadata(ctx context.Context, id, key string) error {
+	host, err := p.GetNodeHost(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodDelete)
-	req.SetRequestURI(p.getMetaHost(id, key))
+	req.SetRequestURI(getMetaHost(host, key))
 	res.StreamBody = true
 
 	if err := p.client.Do(req, res); err != nil {

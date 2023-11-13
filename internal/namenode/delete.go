@@ -1,15 +1,16 @@
 package namenode
 
 import (
+	"context"
 	"strings"
 
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
-func (n *NameNode) delete(id, key string, metadata *datanode.Metadata) (*datanode.Metadata, error) {
+func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanode.Metadata) (*datanode.Metadata, error) {
 	if key == metadata.Key && metadata.FileExists() {
 		if len(metadata.NextNodes) == 0 {
-			if err := n.pool.DeleteMetadata(id, key); err != nil {
+			if err := n.pool.DeleteMetadata(ctx, id, key); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -19,7 +20,7 @@ func (n *NameNode) delete(id, key string, metadata *datanode.Metadata) (*datanod
 			Key:       metadata.Key,
 			NextNodes: metadata.NextNodes,
 		}
-		if err := n.pool.PutMetadata(id, updated); err != nil {
+		if err := n.pool.PutMetadata(ctx, id, updated); err != nil {
 			return nil, err
 		}
 
@@ -31,19 +32,19 @@ func (n *NameNode) delete(id, key string, metadata *datanode.Metadata) (*datanod
 			continue
 		}
 
-		nextMeta, err := n.pool.GetMetadata(next.NodeId, key)
+		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, key)
 		if err != nil {
 			return nil, err
 		}
 
-		deleted, err := n.delete(next.NodeId, key, nextMeta)
+		deleted, err := n.delete(ctx, next.NodeId, key, nextMeta)
 		if err != nil {
 			return nil, err
 		}
 
 		if deleted == nil {
 			if len(metadata.NextNodes) == 1 && !metadata.FileExists() {
-				if err := n.pool.DeleteMetadata(id, metadata.Key); err != nil {
+				if err := n.pool.DeleteMetadata(ctx, id, metadata.Key); err != nil {
 					return nil, err
 				}
 
@@ -51,7 +52,7 @@ func (n *NameNode) delete(id, key string, metadata *datanode.Metadata) (*datanod
 			}
 
 			metadata.NextNodes = append(metadata.NextNodes[:i], metadata.NextNodes[i+1:]...)
-			if err := n.pool.PutMetadata(id, metadata); err != nil {
+			if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
 				return nil, err
 			}
 
@@ -60,7 +61,7 @@ func (n *NameNode) delete(id, key string, metadata *datanode.Metadata) (*datanod
 
 		if len(deleted.NextNodes) == 1 && !deleted.FileExists() {
 			metadata.NextNodes[i] = deleted.NextNodes[0]
-			if err := n.pool.PutMetadata(id, metadata); err != nil {
+			if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
 				return nil, err
 			}
 			return metadata, nil

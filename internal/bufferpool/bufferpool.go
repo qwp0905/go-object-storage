@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
+	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
 
@@ -17,6 +18,7 @@ const (
 	PB = TB * (1 << 10)
 )
 
+// TODO 비동기로 dirty인 버퍼 풀 비워주는 로직 추가 필요
 type BufferPool struct {
 	noCopy  nocopy.NoCopy
 	fs      *filesystem.FileSystem
@@ -32,7 +34,6 @@ func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
 	}
 }
 
-// TODO max memory보다 파일이 큰경우에 대한 처리 추가 필요
 func (p *BufferPool) Get(key string) (io.Reader, error) {
 	page, ok := p.table.get(key)
 	if ok {
@@ -43,7 +44,6 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
 	info, err := f.Stat()
 	if err != nil {
@@ -53,6 +53,7 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 	if !p.isAvailable(int(info.Size())) {
 		return f, nil
 	}
+	defer f.Close()
 
 	if err := p.flush(int(info.Size())); err != nil {
 		return nil, err
@@ -72,9 +73,9 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 		if _, err := p.fs.WriteFile(key, r); err != nil {
 			return err
 		}
-
 		return nil
 	}
+
 	page, ok := p.table.get(key)
 	if ok {
 		size -= page.getSize()
@@ -90,6 +91,7 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 		return err
 	}
 	p.table.allocate(page)
+	go p.lazyWrite(page)
 	return nil
 }
 
@@ -109,4 +111,15 @@ func (p *BufferPool) FlushAll() error {
 		page.clearDirty()
 	}
 	return nil
+}
+
+func (p *BufferPool) lazyWrite(pg *page) {
+	for i := 0; i < 10; i++ {
+		if _, err := p.fs.WriteFile(pg.key, pg.getData()); err == nil {
+			pg.clearDirty()
+			logger.Infof("%s written...", pg.key)
+			return
+		}
+	}
+	logger.Warnf("error on writing file %s", pg.key)
 }

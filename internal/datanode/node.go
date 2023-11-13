@@ -1,8 +1,8 @@
 package datanode
 
 import (
+	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -11,26 +11,25 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/bufferpool"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
-	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
-	"github.com/valyala/fasthttp"
+	"github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v2"
 )
 
 type DataNode struct {
 	noCopy nocopy.NoCopy
 	bp     *bufferpool.BufferPool
-	base   string
-	id     string
 	config *config
+	rc     *redis.Client
 }
 
 type config struct {
-	Id       string `yaml:"id"`
-	Host     string `yaml:"host"`
-	BaseDir  string `yaml:"base_dir"`
-	NameNode string `yaml:"namenode"`
-	Port     uint   `yaml:"port"`
+	Id        string `yaml:"id"`
+	Host      string `yaml:"host"`
+	BaseDir   string `yaml:"base_dir"`
+	RedisHost string `yaml:"redis_host"`
+	RedisDB   int    `yaml:"redis_db"`
+	Port      uint   `yaml:"port"`
 }
 
 func (c *config) setDefault() {
@@ -43,6 +42,12 @@ func (c *config) setDefault() {
 	if c.BaseDir == "" {
 		c.BaseDir = "/data"
 	}
+	if c.RedisDB == 0 {
+		c.RedisDB = 1
+	}
+	if c.RedisHost == "" {
+		c.RedisHost = "localhost:6379"
+	}
 }
 
 func NewDataNode(path string, bp *bufferpool.BufferPool) (*DataNode, uint, error) {
@@ -51,84 +56,42 @@ func NewDataNode(path string, bp *bufferpool.BufferPool) (*DataNode, uint, error
 		return nil, 0, err
 	}
 
+	rc := redis.NewClient(&redis.Options{Addr: cfg.RedisHost, DB: cfg.RedisDB})
+	if err := rc.SetEx(
+		context.Background(),
+		cfg.Id,
+		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		time.Hour,
+	).Err(); err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
 	if err := ensureDirs(cfg.BaseDir); err != nil {
 		return nil, 0, err
 	}
 
 	return &DataNode{
-		id:     cfg.Id,
-		base:   cfg.BaseDir,
 		bp:     bp,
 		config: cfg,
+		rc:     rc,
 	}, cfg.Port, nil
 }
 
 func (d *DataNode) getMetaKey(key string) string {
 	return fmt.Sprintf(
 		"%s/meta/%s",
-		d.base,
+		d.config.BaseDir,
 		base64.StdEncoding.EncodeToString([]byte(key)),
 	)
 }
 
 func (d *DataNode) getDataKey(key string) string {
-	return fmt.Sprintf("%s/object/%s", d.base, key)
+	return fmt.Sprintf("%s/object/%s", d.config.BaseDir, key)
 }
 
 func generateKey() string {
 	id, _ := uuid.NewRandom()
 	return id.String()
-}
-
-func (d *DataNode) Register() error {
-	var err error
-	for i := 0; i < 5; i++ {
-		time.Sleep(time.Second)
-		err = register(d.config)
-		if err == nil {
-			logger.Info("datanode registered")
-			return nil
-		}
-		logger.Warnf("%+v", err)
-	}
-	panic(err)
-}
-
-type registerBody struct {
-	Id   string `json:"id"`
-	Host string `json:"host"`
-	Port uint   `json:"port"`
-}
-
-func register(cfg *config) error {
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
-	res := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(res)
-
-	req.Header.SetMethod(fasthttp.MethodPost)
-	req.SetRequestURI(fmt.Sprintf("http://%s/node/register", cfg.NameNode))
-	req.Header.SetContentType("application/json")
-
-	b, err := json.Marshal(&registerBody{
-		Id:   cfg.Id,
-		Host: cfg.Host,
-		Port: cfg.Port,
-	})
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	req.SetBody(b)
-
-	if err := fasthttp.Do(req, res); err != nil {
-		return errors.WithStack(err)
-	}
-
-	if res.StatusCode() != fasthttp.StatusOK {
-		return errors.Errorf("%s", string(res.Body()))
-	}
-
-	return nil
 }
 
 func ensureDirs(base string) error {
