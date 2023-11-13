@@ -2,6 +2,8 @@ package namenode
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
@@ -20,6 +22,80 @@ func compare(a, b string) string {
 		out += a[i : i+1]
 	}
 	return out
+}
+
+func (n *NameNode) put(
+	ctx context.Context,
+	id string,
+	key string,
+	metadata *datanode.Metadata,
+	size int,
+	r io.Reader,
+) error {
+	for _, next := range metadata.NextNodes {
+		matched := compare(next.Key, key)
+		if len(matched) <= len(metadata.Key) {
+			continue
+		}
+
+		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
+		if err != nil {
+			return err
+		}
+
+		if next.Key == key {
+			nextMeta.Size = uint(size)
+			nextMeta.LastModified = time.Now()
+			if !nextMeta.FileExists() {
+				nextMeta.Source = generateKey()
+			}
+
+			if _, err := n.pool.PutDirect(ctx, nextMeta, r); err != nil {
+				return err
+			}
+			return n.pool.PutMetadata(ctx, next.NodeId, nextMeta)
+		}
+
+		if matched == nextMeta.Key {
+			return n.put(ctx, next.NodeId, key, nextMeta, size, r)
+		}
+
+		nodeId, err := n.pool.AcquireNode(ctx)
+		if err != nil {
+			return err
+		}
+		newMeta := &datanode.Metadata{
+			Key: matched,
+		}
+	}
+
+	nodeId, err := n.pool.AcquireNode(ctx)
+	if err != nil {
+		return err
+	}
+	newMeta := &datanode.Metadata{
+		NodeId:       nodeId,
+		Key:          key,
+		LastModified: time.Now(),
+		Size:         uint(size),
+		NextNodes:    make([]*datanode.NextRoute, 0),
+	}
+	if _, err := n.pool.PutDirect(ctx, newMeta, r); err != nil {
+		return err
+	}
+	metadataId, err := n.pool.AcquireNode(ctx)
+	if err != nil {
+		return err
+	}
+	if err := n.pool.PutMetadata(ctx, metadataId, newMeta); err != nil {
+		return err
+	}
+
+	metadata.NextNodes = append(metadata.NextNodes, &datanode.NextRoute{
+		Key:    key,
+		NodeId: metadataId,
+	})
+	return n.pool.PutMetadata(ctx, id, metadata)
 }
 
 func (n *NameNode) reorderMetadata(ctx context.Context, id string, current *datanode.Metadata, saved *datanode.NextRoute) error {
