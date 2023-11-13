@@ -52,6 +52,7 @@ func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]
 }
 
 func (n *NameNode) PutObject(ctx context.Context, key string, size int, r io.Reader) error {
+	// TODO 싹고쳐야된디 만일 가져온 메타데이터가 파일 디렉토리가 아니라면?
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
 		return err
