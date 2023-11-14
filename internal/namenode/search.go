@@ -29,12 +29,35 @@ func (n *NameNode) get(ctx context.Context, id, key string, metadata *datanode.M
 
 func (n *NameNode) scan(ctx context.Context, key string, limit int, metadata *datanode.Metadata) ([]*datanode.Metadata, error) {
 	out := []*datanode.Metadata{}
-	if metadata.FileExists() {
-		out = append(out, metadata)
+	if strings.HasPrefix(metadata.Key, key) {
+		if metadata.FileExists() {
+			out = append(out, metadata)
+		}
+
+		for _, next := range metadata.NextNodes {
+			nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
+			if err != nil {
+				return nil, err
+			}
+
+			r, err := n.scan(ctx, key, limit, nextMeta)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, v := range r {
+				if len(out) == limit {
+					return out, nil
+				}
+				out = append(out, v)
+			}
+		}
+
+		return out, nil
 	}
 
 	for _, next := range metadata.NextNodes {
-		if !strings.HasPrefix(next.Key, key) {
+		if !(strings.HasPrefix(key, next.Key) || strings.HasPrefix(next.Key, key)) {
 			continue
 		}
 
