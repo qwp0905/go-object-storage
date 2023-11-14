@@ -29,6 +29,15 @@ func (p *NodePool) AcquireNode(ctx context.Context) (string, error) {
 }
 
 func (p *NodePool) CheckAliveNodes() error {
+	for {
+		time.Sleep(time.Minute)
+		if err := p.checkAround(); err != nil {
+			logger.Warnf("%+v", err)
+		}
+	}
+}
+
+func (p *NodePool) checkAround() error {
 	ctx := context.Background()
 	ids, err := p.rc.Keys(ctx, "*").Result()
 	if err != nil {
@@ -40,7 +49,6 @@ func (p *NodePool) CheckAliveNodes() error {
 			logger.Warnf("%+v", err)
 			if err := p.rc.Del(ctx, id).Err(); err != nil {
 				logger.Warnf("%+v", err)
-				continue
 			}
 			continue
 		}
