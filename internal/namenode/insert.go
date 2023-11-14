@@ -32,6 +32,25 @@ func (n *NameNode) put(
 	size int,
 	r io.Reader,
 ) error {
+	if key == metadata.Key {
+		metadata.Size = uint(size)
+		metadata.LastModified = time.Now()
+		if !metadata.FileExists() {
+			nodeId, err := n.pool.AcquireNode(ctx)
+			if err != nil {
+				return err
+			}
+			metadata.NodeId = nodeId
+			metadata.Source = generateKey()
+		}
+
+		if _, err := n.pool.PutDirect(ctx, metadata, r); err != nil {
+			return err
+		}
+
+		return n.pool.PutMetadata(ctx, id, metadata)
+	}
+
 	for i, next := range metadata.NextNodes {
 		matched := compare(next.Key, key)
 		if len(matched) <= len(metadata.Key) {
@@ -41,19 +60,6 @@ func (n *NameNode) put(
 		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
 		if err != nil {
 			return err
-		}
-
-		if next.Key == key {
-			nextMeta.Size = uint(size)
-			nextMeta.LastModified = time.Now()
-			if !nextMeta.FileExists() {
-				nextMeta.Source = generateKey()
-			}
-
-			if _, err := n.pool.PutDirect(ctx, nextMeta, r); err != nil {
-				return err
-			}
-			return n.pool.PutMetadata(ctx, next.NodeId, nextMeta)
 		}
 
 		if matched == nextMeta.Key {
@@ -85,6 +91,7 @@ func (n *NameNode) put(
 	newMeta := &datanode.Metadata{
 		NodeId:       dataId,
 		Key:          key,
+		Source:       generateKey(),
 		LastModified: time.Now(),
 		Size:         uint(size),
 		NextNodes:    make([]*datanode.NextRoute, 0),

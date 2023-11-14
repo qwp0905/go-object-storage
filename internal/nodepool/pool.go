@@ -37,6 +37,9 @@ func NewNodePool(redisHost string, redisDB int) *NodePool {
 func (p *NodePool) GetRootId() string {
 	return p.root.Id
 }
+func (p *NodePool) GetRootKey() string {
+	return p.rootKey
+}
 
 func (p *NodePool) GetRootMetadata(ctx context.Context) (*datanode.Metadata, error) {
 	if p.root != nil {

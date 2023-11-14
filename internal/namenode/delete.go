@@ -32,7 +32,7 @@ func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanod
 			continue
 		}
 
-		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, key)
+		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
 		if err != nil {
 			return nil, err
 		}
@@ -44,6 +44,10 @@ func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanod
 
 		if deleted == nil {
 			if len(metadata.NextNodes) == 1 && !metadata.FileExists() {
+				if metadata.Key == n.pool.GetRootKey() {
+					return metadata, nil
+				}
+
 				if err := n.pool.DeleteMetadata(ctx, id, metadata.Key); err != nil {
 					return nil, err
 				}
@@ -62,6 +66,9 @@ func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanod
 		if len(deleted.NextNodes) == 1 && !deleted.FileExists() {
 			metadata.NextNodes[i] = deleted.NextNodes[0]
 			if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
+				return nil, err
+			}
+			if err := n.pool.DeleteMetadata(ctx, next.NodeId, nextMeta.Key); err != nil {
 				return nil, err
 			}
 			return metadata, nil
