@@ -78,12 +78,12 @@ func (n *NameNode) put(
 		return n.put(ctx, nodeId, key, newMeta, size, r)
 	}
 
-	nodeId, err := n.pool.AcquireNode(ctx)
+	dataId, err := n.pool.AcquireNode(ctx)
 	if err != nil {
 		return err
 	}
 	newMeta := &datanode.Metadata{
-		NodeId:       nodeId,
+		NodeId:       dataId,
 		Key:          key,
 		LastModified: time.Now(),
 		Size:         uint(size),
@@ -92,6 +92,7 @@ func (n *NameNode) put(
 	if _, err := n.pool.PutDirect(ctx, newMeta, r); err != nil {
 		return err
 	}
+
 	metadataId, err := n.pool.AcquireNode(ctx)
 	if err != nil {
 		return err
