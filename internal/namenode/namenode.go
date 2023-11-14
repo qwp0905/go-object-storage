@@ -3,7 +3,6 @@ package namenode
 import (
 	"context"
 	"io"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -52,64 +51,17 @@ func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]
 }
 
 func (n *NameNode) PutObject(ctx context.Context, key string, size int, r io.Reader) error {
-	// TODO 싹고쳐야된디 만일 가져온 메타데이터가 파일 디렉토리가 아니라면?
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
 		return err
 	}
 
-	id, metadata, err := n.get(ctx, n.pool.GetRootId(), key, root)
-	if err != nil && err != fiber.ErrNotFound {
-		return err
-	}
-
-	if err == nil {
-		metadata.Size = uint(size)
-		metadata.LastModified = time.Now()
-
-		if _, err := n.pool.PutDirect(ctx, metadata, r); err != nil {
-			return err
-		}
-
-		return n.pool.PutMetadata(ctx, id, metadata)
-	}
-
-	nodeId, err := n.pool.AcquireNode(ctx)
-	if err != nil {
-		return err
-	}
-	newMeta := &datanode.Metadata{
-		Key:          key,
-		Source:       generateKey(),
-		Size:         uint(size),
-		NodeId:       nodeId,
-		LastModified: time.Now(),
-		NextNodes:    []*datanode.NextRoute{},
-	}
-
-	metaNode, err := n.pool.AcquireNode(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := n.pool.PutDirect(ctx, newMeta, r); err != nil {
-		return err
-	}
-	if err := n.pool.PutMetadata(ctx, metaNode, newMeta); err != nil {
-		return err
-	}
-
-	return n.reorderMetadata(ctx, n.pool.GetRootId(), root, &datanode.NextRoute{
-		NodeId: metaNode,
-		Key:    key,
-	})
+	return n.put(ctx, n.pool.GetRootId(), key, root, size, r)
 }
 
 func (n *NameNode) DeleteObject(ctx context.Context, key string) error {
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
-		return err
-	}
-	if _, err := n.delete(ctx, n.pool.GetRootId(), key, root); err != nil {
 		return err
 	}
 
@@ -118,6 +70,10 @@ func (n *NameNode) DeleteObject(ctx context.Context, key string) error {
 		if err == fiber.ErrNotFound {
 			return nil
 		}
+		return err
+	}
+
+	if _, err := n.delete(ctx, n.pool.GetRootId(), key, root); err != nil {
 		return err
 	}
 

@@ -32,7 +32,7 @@ func (n *NameNode) put(
 	size int,
 	r io.Reader,
 ) error {
-	for _, next := range metadata.NextNodes {
+	for i, next := range metadata.NextNodes {
 		matched := compare(next.Key, key)
 		if len(matched) <= len(metadata.Key) {
 			continue
@@ -64,9 +64,18 @@ func (n *NameNode) put(
 		if err != nil {
 			return err
 		}
-		newMeta := &datanode.Metadata{
-			Key: matched,
+
+		newMeta := &datanode.Metadata{Key: matched, NextNodes: []*datanode.NextRoute{next}}
+		if err := n.pool.PutMetadata(ctx, nodeId, newMeta); err != nil {
+			return err
 		}
+
+		metadata.NextNodes[i] = &datanode.NextRoute{NodeId: nodeId, Key: matched}
+		if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
+			return err
+		}
+
+		return n.put(ctx, nodeId, key, newMeta, size, r)
 	}
 
 	nodeId, err := n.pool.AcquireNode(ctx)
@@ -96,47 +105,4 @@ func (n *NameNode) put(
 		NodeId: metadataId,
 	})
 	return n.pool.PutMetadata(ctx, id, metadata)
-}
-
-func (n *NameNode) reorderMetadata(ctx context.Context, id string, current *datanode.Metadata, saved *datanode.NextRoute) error {
-	for _, next := range current.NextNodes {
-		matched := compare(next.Key, saved.Key)
-		if len(matched) <= len(current.Key) {
-			continue
-		}
-
-		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
-		if err != nil {
-			return err
-		}
-		if nextMeta.Key != saved.Key {
-			newChild := &datanode.Metadata{
-				Key:       matched,
-				Source:    nextMeta.Source,
-				Size:      nextMeta.Size,
-				NodeId:    nextMeta.NodeId,
-				NextNodes: nextMeta.NextNodes,
-			}
-
-			newId, err := n.pool.AcquireNode(ctx)
-			if err != nil {
-				return err
-			}
-			if err := n.pool.PutMetadata(ctx, newId, newChild); err != nil {
-				return err
-			}
-			nextMeta.NextNodes = []*datanode.NextRoute{{
-				NodeId: newId,
-				Key:    matched,
-			}}
-			if err := n.pool.PutMetadata(ctx, next.NodeId, nextMeta); err != nil {
-				return err
-			}
-		}
-		// TODO 이부분 로직 수정 필요 문제 있음
-		return n.reorderMetadata(ctx, next.NodeId, nextMeta, saved)
-	}
-
-	current.NextNodes = append(current.NextNodes, saved)
-	return n.pool.PutMetadata(ctx, id, current)
 }
