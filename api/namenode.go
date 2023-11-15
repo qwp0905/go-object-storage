@@ -2,7 +2,6 @@ package api
 
 import (
 	"bytes"
-	"io"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -64,18 +63,8 @@ func (c *nameNode) listObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameNode) putObject(ctx *fiber.Ctx) error {
-	body := ctx.Request().BodyStream()
-	if body == nil {
-		return fiber.ErrBadRequest
-	}
-	defer ctx.Request().CloseBodyStream()
-
-	f := new(bytes.Buffer)
-	if _, err := io.Copy(f, body); err != nil {
-		return err
-	}
-
-	if err := c.svc.PutObject(ctx.Context(), c.getPath(ctx), ctx.Request().Header.ContentLength(), f); err != nil {
+	body := bytes.NewReader(ctx.BodyRaw())
+	if err := c.svc.PutObject(ctx.Context(), c.getPath(ctx), ctx.Request().Header.ContentLength(), body); err != nil {
 		return err
 	}
 

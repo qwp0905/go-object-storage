@@ -24,6 +24,12 @@ FROM debian:bookworm-20230919-slim
 WORKDIR /
 COPY --from=build /workspace/execute .
 
-VOLUME [ "/var/lib/datanode" ]
+# USER root
+# RUN useradd -m -d /var/lib/datanode datanode
+# RUN chown -R datanode /var/lib/datanode/
+
+# USER datanode
+
+# VOLUME [ "/var/lib/datanode" ]
 
 ENTRYPOINT ["/execute"]

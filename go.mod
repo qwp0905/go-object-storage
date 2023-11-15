@@ -8,7 +8,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.3.0
 	github.com/valyala/fasthttp v1.50.0
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (

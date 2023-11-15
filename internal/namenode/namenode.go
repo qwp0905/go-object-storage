@@ -3,6 +3,7 @@ package namenode
 import (
 	"context"
 	"io"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -11,14 +12,18 @@ import (
 )
 
 type NameNode struct {
-	pool *nodepool.NodePool
+	pool   *nodepool.NodePool
+	locker *sync.RWMutex
 }
 
 func New(pool *nodepool.NodePool) *NameNode {
-	return &NameNode{pool: pool}
+	return &NameNode{pool: pool, locker: new(sync.RWMutex)}
 }
 
 func (n *NameNode) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
+	n.locker.RLock()
+	defer n.locker.RUnlock()
+
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
 		return nil, err
@@ -38,10 +43,16 @@ func (n *NameNode) GetObject(ctx context.Context, key string) (io.Reader, error)
 		return nil, err
 	}
 
+	n.locker.RLock()
+	defer n.locker.RUnlock()
+
 	return n.pool.GetDirect(ctx, metadata)
 }
 
 func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]*datanode.Metadata, error) {
+	n.locker.RLock()
+	defer n.locker.RUnlock()
+
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
 		return nil, err
@@ -51,6 +62,9 @@ func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]
 }
 
 func (n *NameNode) PutObject(ctx context.Context, key string, size int, r io.Reader) error {
+	n.locker.Lock()
+	defer n.locker.Unlock()
+
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
 		return err
@@ -72,6 +86,9 @@ func (n *NameNode) DeleteObject(ctx context.Context, key string) error {
 		}
 		return err
 	}
+
+	n.locker.Lock()
+	defer n.locker.Unlock()
 
 	if _, err := n.delete(ctx, n.pool.GetRootId(), key, root); err != nil {
 		return err

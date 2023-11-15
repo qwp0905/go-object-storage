@@ -17,7 +17,7 @@ func (n *NameNode) get(ctx context.Context, id, key string, metadata *datanode.M
 			continue
 		}
 
-		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, key)
+		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
 		if err != nil {
 			return "", nil, err
 		}

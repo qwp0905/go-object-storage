@@ -25,6 +25,10 @@ func (p *NodePool) AcquireNode(ctx context.Context) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
+	if len(ids) == 0 {
+		return "", errors.New("no datanode registered...")
+	}
+
 	return ids[p.counter(len(ids))], nil
 }
 
@@ -51,10 +55,6 @@ func (p *NodePool) checkAround() error {
 				logger.Warnf("%+v", err)
 			}
 			continue
-		}
-
-		if err := p.rc.Expire(ctx, id, time.Hour).Err(); err != nil {
-			logger.Warnf("%+v", err)
 		}
 	}
 	return nil

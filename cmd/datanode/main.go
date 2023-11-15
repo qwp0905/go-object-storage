@@ -47,12 +47,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	go node.Live()
 
 	dataController := api.NewData(node)
 	metaController := api.NewMeta(node)
+	healthController := api.NewHealth()
 
 	app = http.NewApplication()
-	app.Mount(dataController, metaController)
+	app.Mount(dataController, metaController, healthController)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)

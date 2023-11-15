@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/bufferpool"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
+	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/redis/go-redis/v9"
 )
@@ -28,23 +29,12 @@ type Config struct {
 	BaseDir   string
 	RedisHost string
 	RedisDB   int
-	Port      uint
 }
 
 func NewDataNode(cfg *Config, bp *bufferpool.BufferPool) (*DataNode, error) {
 	id, err := ensureId(cfg.BaseDir)
 	if err != nil {
 		return nil, err
-	}
-
-	rc := redis.NewClient(&redis.Options{Addr: cfg.RedisHost, DB: cfg.RedisDB})
-	if err := rc.SetEx(
-		context.Background(),
-		id,
-		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		time.Hour,
-	).Err(); err != nil {
-		return nil, errors.WithStack(err)
 	}
 
 	if err := ensureDirs(cfg.BaseDir); err != nil {
@@ -54,7 +44,7 @@ func NewDataNode(cfg *Config, bp *bufferpool.BufferPool) (*DataNode, error) {
 	return &DataNode{
 		bp:     bp,
 		config: cfg,
-		rc:     rc,
+		rc:     redis.NewClient(&redis.Options{Addr: cfg.RedisHost, DB: cfg.RedisDB}),
 		id:     id,
 	}, nil
 }
@@ -77,10 +67,10 @@ func generateKey() string {
 }
 
 func ensureDirs(base string) error {
-	if err := filesystem.EnsureDir(fmt.Sprintf("%s/meta/", base)); err != nil {
+	if err := filesystem.EnsureDir(fmt.Sprintf("%s/meta", base)); err != nil {
 		return err
 	}
-	if err := filesystem.EnsureDir(fmt.Sprintf("%s/object/", base)); err != nil {
+	if err := filesystem.EnsureDir(fmt.Sprintf("%s/object", base)); err != nil {
 		return err
 	}
 	return nil
@@ -109,4 +99,13 @@ func ensureId(base string) (string, error) {
 	}
 
 	return id, nil
+}
+
+func (n *DataNode) Live() {
+	for {
+		time.Sleep(time.Second * 30)
+		if err := n.rc.SetEx(context.Background(), n.id, n.config.Host, time.Hour).Err(); err != nil {
+			logger.Warnf("%+v", errors.WithStack(err))
+		}
+	}
 }

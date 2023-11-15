@@ -45,8 +45,64 @@ services:
         published: 8081
     stop_grace_period: "5s"
     volumes:
-      - type: bind
-        source: .data/
+      - type: volume
+        source: datanode1
+        target: /var/lib/datanode/
+
+  datanode2:
+    depends_on: ["namenode1"]
+    build:
+      context: .
+      dockerfile: deploy/datanode/Dockerfile
+    container_name: datanode-2
+    command:
+      - "--addr=8080"
+      - "--redis=redis:6379"
+      - "--db=1"
+      - "--host=datanode2"
+      - "--base=/var/lib/datanode"
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 256M
+    ports:
+      - protocol: tcp
+        target: 8080
+        published: 8082
+    stop_grace_period: "5s"
+    volumes:
+      - type: volume
+        source: datanode2
+        target: /var/lib/datanode/
+
+  datanode3:
+    depends_on: ["namenode1"]
+    build:
+      context: .
+      dockerfile: deploy/datanode/Dockerfile
+    container_name: datanode-3
+    command:
+      - "--addr=8080"
+      - "--redis=redis:6379"
+      - "--db=1"
+      - "--host=datanode3"
+      - "--base=/var/lib/datanode"
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 256M
+    ports:
+      - protocol: tcp
+        target: 8080
+        published: 8083
+    stop_grace_period: "5s"
+    volumes:
+      - type: volume
+        source: datanode3
         target: /var/lib/datanode/
 
   redis:
@@ -64,3 +120,11 @@ services:
         published: 6379
     environment:
       TZ: Asia/Seoul
+
+volumes:
+  datanode1:
+    name: datanode1
+  datanode2:
+    name: datanode2
+  datanode3:
+    name: datanode3

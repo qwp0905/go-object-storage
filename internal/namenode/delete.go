@@ -68,7 +68,7 @@ func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanod
 			if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
 				return nil, err
 			}
-			if err := n.pool.DeleteMetadata(ctx, next.NodeId, nextMeta.Key); err != nil {
+			if err := n.pool.DeleteMetadata(ctx, next.NodeId, next.Key); err != nil {
 				return nil, err
 			}
 			return metadata, nil
