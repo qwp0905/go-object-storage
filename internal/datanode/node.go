@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,10 @@ import (
 
 func HostKey(id string) string {
 	return fmt.Sprintf("HOST:%s", id)
+}
+
+func IdFromKey(key string) string {
+	return strings.TrimPrefix(key, "HOST:")
 }
 
 type DataNode struct {

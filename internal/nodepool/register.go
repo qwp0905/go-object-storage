@@ -30,7 +30,7 @@ func (p *NodePool) AcquireNode(ctx context.Context) (string, error) {
 		return "", errors.New("no datanode registered...")
 	}
 
-	return ids[p.counter(len(ids))], nil
+	return datanode.IdFromKey(ids[p.counter(len(ids))]), nil
 }
 
 func (p *NodePool) CheckAliveNodes() error {
