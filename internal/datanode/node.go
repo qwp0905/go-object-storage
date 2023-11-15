@@ -16,6 +16,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+func HostKey(id string) string {
+	return fmt.Sprintf("HOST:%s", id)
+}
+
 type DataNode struct {
 	noCopy nocopy.NoCopy
 	bp     *bufferpool.BufferPool
@@ -104,7 +108,12 @@ func ensureId(base string) (string, error) {
 func (n *DataNode) Live() {
 	for {
 		time.Sleep(time.Second * 30)
-		if err := n.rc.SetEx(context.Background(), n.id, n.config.Host, time.Hour).Err(); err != nil {
+		if err := n.rc.SetEx(
+			context.Background(),
+			HostKey(n.id),
+			n.config.Host,
+			time.Hour,
+		).Err(); err != nil {
 			logger.Warnf("%+v", errors.WithStack(err))
 		}
 	}

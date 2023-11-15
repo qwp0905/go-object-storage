@@ -79,7 +79,7 @@ func (p *NodePool) createRoot(ctx context.Context) error {
 }
 
 func (p *NodePool) findRoot(ctx context.Context) error {
-	ids, err := p.rc.Keys(ctx, "*").Result()
+	ids, err := p.rc.Keys(ctx, datanode.HostKey("*")).Result()
 	if err != nil {
 		return errors.WithStack(err)
 	}

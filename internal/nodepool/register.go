@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/qwp0905/go-object-storage/internal/datanode"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/valyala/fasthttp"
 )
 
 func (p *NodePool) GetNodeHost(ctx context.Context, id string) (string, error) {
-	host, err := p.rc.Get(ctx, id).Result()
+	host, err := p.rc.Get(ctx, datanode.HostKey(id)).Result()
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -20,7 +21,7 @@ func (p *NodePool) GetNodeHost(ctx context.Context, id string) (string, error) {
 }
 
 func (p *NodePool) AcquireNode(ctx context.Context) (string, error) {
-	ids, err := p.rc.Keys(ctx, "*").Result()
+	ids, err := p.rc.Keys(ctx, datanode.HostKey("*")).Result()
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -43,7 +44,7 @@ func (p *NodePool) CheckAliveNodes() error {
 
 func (p *NodePool) checkAround() error {
 	ctx := context.Background()
-	ids, err := p.rc.Keys(ctx, "*").Result()
+	ids, err := p.rc.Keys(ctx, datanode.HostKey("*")).Result()
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -51,7 +52,7 @@ func (p *NodePool) checkAround() error {
 	for _, id := range ids {
 		if err := p.healthCheck(ctx, id); err != nil {
 			logger.Warnf("%+v", err)
-			if err := p.rc.Del(ctx, id).Err(); err != nil {
+			if err := p.rc.Del(ctx, datanode.HostKey(id)).Err(); err != nil {
 				logger.Warnf("%+v", err)
 			}
 			continue
