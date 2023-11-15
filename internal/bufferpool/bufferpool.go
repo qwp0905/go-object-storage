@@ -75,6 +75,7 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 		if _, err := p.fs.WriteFile(key, r); err != nil {
 			return err
 		}
+		p.table.deAllocate(key)
 		return nil
 	}
 
