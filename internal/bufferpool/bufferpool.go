@@ -98,9 +98,8 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 }
 
 func (p *BufferPool) Delete(key string) error {
-	p.table.deAllocate(key)
-	go p.lazyRemove(key)
-	return nil
+	defer p.table.deAllocate(key)
+	return p.fs.RemoveFile(key)
 }
 
 func (p *BufferPool) FlushAll() error {
@@ -125,14 +124,4 @@ func (p *BufferPool) lazyWrite(pg *page) {
 		}
 	}
 	logger.Warnf("error on writing file %s", pg.key)
-}
-
-func (p *BufferPool) lazyRemove(key string) {
-	for i := 0; i < p.retry; i++ {
-		if err := p.fs.RemoveFile(key); err == nil {
-			logger.Infof("%s removed...", key)
-			return
-		}
-	}
-	logger.Warnf("error on writing file %s", key)
 }
