@@ -74,7 +74,7 @@ func localDateTime() string {
 	return time.Now().In(tz).Format(time.DateTime)
 }
 
-func FromCtx(ctx *fiber.Ctx, err error) {
+func CtxError(ctx *fiber.Ctx, err error) {
 	l := &ctxLog{
 		Path:    ctx.Path(),
 		At:      time.Now(),

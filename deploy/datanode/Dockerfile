@@ -24,6 +24,6 @@ FROM debian:bookworm-20230919-slim
 WORKDIR /
 COPY --from=build /workspace/execute .
 
-VOLUME [ "/data" ]
+VOLUME [ "/var/lib/datanode" ]
 
 ENTRYPOINT ["/execute"]

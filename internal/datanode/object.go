@@ -17,7 +17,7 @@ func (d *DataNode) PutObject(key string, size int, r io.Reader) (*Metadata, erro
 	return &Metadata{
 		Source:    key,
 		Size:      uint(size),
-		NodeId:    d.config.Id,
+		NodeId:    d.id,
 		NextNodes: []*NextRoute{},
 	}, nil
 }

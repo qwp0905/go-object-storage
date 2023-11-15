@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"io"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -66,10 +68,14 @@ func (c *nameNode) putObject(ctx *fiber.Ctx) error {
 	if body == nil {
 		return fiber.ErrBadRequest
 	}
-	// reader를 copy할 방법 모색 필요
 	defer ctx.Request().CloseBodyStream()
 
-	if err := c.svc.PutObject(ctx.Context(), c.getPath(ctx), ctx.Request().Header.ContentLength(), body); err != nil {
+	f := new(bytes.Buffer)
+	if _, err := io.Copy(f, body); err != nil {
+		return err
+	}
+
+	if err := c.svc.PutObject(ctx.Context(), c.getPath(ctx), ctx.Request().Header.ContentLength(), f); err != nil {
 		return err
 	}
 

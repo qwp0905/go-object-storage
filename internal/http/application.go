@@ -11,10 +11,9 @@ import (
 
 type Application struct {
 	source *fiber.App
-	port   uint
 }
 
-func NewApplication(port uint, controllers ...api.Controller) *Application {
+func NewApplication() *Application {
 	source := fiber.New(fiber.Config{
 		StreamRequestBody: true,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -24,18 +23,20 @@ func NewApplication(port uint, controllers ...api.Controller) *Application {
 				code = e.Code
 			}
 
-			logger.FromCtx(c, err)
+			logger.CtxError(c, err)
 			return c.Status(code).JSON(fiber.Map{"message": err.Error()})
 		},
 	})
 
-	for _, c := range controllers {
-		source.Mount(c.Path(), c.Router())
-	}
-
-	return &Application{source: source, port: port}
+	return &Application{source: source}
 }
 
-func (a *Application) Listen() error {
-	return a.source.Listen(fmt.Sprintf(":%d", a.port))
+func (a *Application) Mount(controllers ...api.Controller) {
+	for _, c := range controllers {
+		a.source.Mount(c.Path(), c.Router())
+	}
+}
+
+func (a *Application) Listen(port uint) error {
+	return a.source.Listen(fmt.Sprintf(":%d", port))
 }

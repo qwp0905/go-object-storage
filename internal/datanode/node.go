@@ -13,68 +13,50 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/redis/go-redis/v9"
-	"gopkg.in/yaml.v2"
 )
 
 type DataNode struct {
 	noCopy nocopy.NoCopy
 	bp     *bufferpool.BufferPool
-	config *config
+	config *Config
 	rc     *redis.Client
+	id     string
 }
 
-type config struct {
-	Id        string `yaml:"id"`
-	Host      string `yaml:"host"`
-	BaseDir   string `yaml:"base_dir"`
-	RedisHost string `yaml:"redis_host"`
-	RedisDB   int    `yaml:"redis_db"`
-	Port      uint   `yaml:"port"`
+type Config struct {
+	Host      string
+	BaseDir   string
+	RedisHost string
+	RedisDB   int
+	Port      uint
 }
 
-func (c *config) setDefault() {
-	if c.Host == "" {
-		c.Host = ""
-	}
-	if c.Id == "" {
-		c.Id = generateKey()
-	}
-	if c.BaseDir == "" {
-		c.BaseDir = "/data"
-	}
-	if c.RedisDB == 0 {
-		c.RedisDB = 1
-	}
-	if c.RedisHost == "" {
-		c.RedisHost = "localhost:6379"
-	}
-}
-
-func NewDataNode(path string, bp *bufferpool.BufferPool) (*DataNode, uint, error) {
-	cfg, err := ensureConfig(path)
+func NewDataNode(cfg *Config, bp *bufferpool.BufferPool) (*DataNode, error) {
+	id, err := ensureId(cfg.BaseDir)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	rc := redis.NewClient(&redis.Options{Addr: cfg.RedisHost, DB: cfg.RedisDB})
 	if err := rc.SetEx(
 		context.Background(),
-		cfg.Id,
+		id,
 		fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		time.Hour,
 	).Err(); err != nil {
-		return nil, 0, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	if err := ensureDirs(cfg.BaseDir); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	return &DataNode{
 		bp:     bp,
 		config: cfg,
 		rc:     rc,
-	}, cfg.Port, nil
+		id:     id,
+	}, nil
 }
 
 func (d *DataNode) getMetaKey(key string) string {
@@ -104,34 +86,27 @@ func ensureDirs(base string) error {
 	return nil
 }
 
-func ensureConfig(path string) (*config, error) {
-	f, err := os.Open(path)
+func ensureId(base string) (string, error) {
+	path := fmt.Sprintf("%s/id", base)
+
+	b, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return "", errors.WithStack(err)
+	}
+	if err == nil {
+		return string(b), nil
+	}
+
+	id := generateKey()
+	f, err := os.Create(path)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return "", errors.WithStack(err)
 	}
 	defer f.Close()
 
-	cfg := new(config)
-	if err := yaml.NewDecoder(f).Decode(cfg); err != nil {
-		return nil, errors.WithStack(err)
+	if _, err := f.WriteString(id); err != nil {
+		return "", errors.WithStack(err)
 	}
 
-	cfg.setDefault()
-
-	b, err := yaml.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	u, err := os.Create(path)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	defer u.Close()
-
-	if _, err := u.Write(b); err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	return cfg, nil
+	return id, nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,17 +18,32 @@ import (
 var app *http.Application
 
 var (
-	configPath string
+	redisHost string
+	baseDir   string
+	redisDB   int
+	addr      uint
+	host      string
 )
 
 func main() {
-	flag.StringVar(&configPath, "config", "/var/lib/datanode/config.yaml", "config file path")
+	flag.StringVar(&redisHost, "redis", "localhost:6379", "redis host")
+	flag.IntVar(&redisDB, "db", 1, "redis db no")
+	flag.StringVar(&baseDir, "base", "/var/lib/datanode/", "base directory")
+	flag.StringVar(&host, "host", "", "host which to be register in redis")
+	flag.UintVar(&addr, "addr", 8080, "application port")
+
 	flag.Parse()
 
 	fs := filesystem.NewFileSystem()
 	bp := bufferpool.NewBufferPool(int(float64(os.Getpagesize()*bufferpool.MB)*0.8), fs)
 	logger.Infof("%01f mb can be allocate", float64(os.Getpagesize())*0.8)
-	node, addr, err := datanode.NewDataNode(configPath, bp)
+
+	node, err := datanode.NewDataNode(&datanode.Config{
+		RedisHost: redisHost,
+		RedisDB:   redisDB,
+		Host:      fmt.Sprintf("%s:%d", host, addr),
+		BaseDir:   baseDir,
+	}, bp)
 	if err != nil {
 		panic(err)
 	}
@@ -35,14 +51,15 @@ func main() {
 	dataController := api.NewData(node)
 	metaController := api.NewMeta(node)
 
-	app = http.NewApplication(addr, dataController, metaController)
+	app = http.NewApplication()
+	app.Mount(dataController, metaController)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
 	done := make(chan struct{}, 1)
 	go graceful(bp, sigs, done)
 
-	if err := app.Listen(); err != nil {
+	if err := app.Listen(addr); err != nil {
 		panic(err)
 	}
 	<-done
@@ -50,11 +67,10 @@ func main() {
 
 func graceful(bp *bufferpool.BufferPool, sig chan os.Signal, done chan struct{}) {
 	<-sig
-	defer func() {
-		logger.Info("data all flushed")
-		done <- struct{}{}
-	}()
+	defer close(done)
+
 	if err := bp.FlushAll(); err != nil {
 		panic(err)
 	}
+	logger.Info("data all flushed")
 }

@@ -5,7 +5,11 @@ services:
       context: .
       dockerfile: deploy/namenode/Dockerfile
     container_name: namenode
-    command: ["--addr", "8080", "--redis", "redis:6379", "--db", "1"]
+    command:
+      - "--addr=8080"
+      - "--redis=redis:6379"
+      - "--db=1"
+      - "--master"
     deploy:
       mode: global
       resources:
@@ -23,7 +27,12 @@ services:
       context: .
       dockerfile: deploy/datanode/Dockerfile
     container_name: datanode-1
-    command: ["--config", "/var/lib/datanode/config.yaml"]
+    command:
+      - "--addr=8080"
+      - "--redis=redis:6379"
+      - "--db=1"
+      - "--host=datanode1"
+      - "--base=/var/lib/datanode"
     deploy:
       mode: global
       resources:
@@ -37,8 +46,8 @@ services:
     stop_grace_period: "5s"
     volumes:
       - type: bind
-        source: .data/1.yaml
-        target: /var/lib/datanode/config.yaml
+        source: .data/
+        target: /var/lib/datanode/
 
   redis:
     image: redis:7.0

@@ -35,12 +35,9 @@ func main() {
 	healthController := api.NewHealth()
 	apiController := api.NewNameNode(nameNode)
 
-	app = http.NewApplication(
-		addr,
-		healthController,
-		apiController,
-	)
-	if err := app.Listen(); err != nil {
+	app = http.NewApplication()
+	app.Mount(healthController, apiController)
+	if err := app.Listen(addr); err != nil {
 		panic(err)
 	}
 }
