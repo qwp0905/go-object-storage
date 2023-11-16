@@ -18,7 +18,6 @@ const (
 	PB = TB * (1 << 10)
 )
 
-// TODO 비동기로 dirty인 버퍼 풀 비워주는 로직 추가 필요
 type BufferPool struct {
 	noCopy  nocopy.NoCopy
 	fs      *filesystem.FileSystem
