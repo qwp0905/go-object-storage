@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: deploy/namenode/Dockerfile
-    container_name: namenode
+    container_name: namenode-1
     command:
       - "--addr=8080"
       - "--redis=redis:6379"
@@ -14,12 +14,33 @@ services:
       mode: global
       resources:
         limits:
-          cpus: "1"
-          memory: 1024M
+          cpus: "0.5"
+          memory: 512M
     ports:
       - protocol: tcp
         target: 8080
         published: 8080
+
+  namenode2:
+    depends_on: ["redis"]
+    build:
+      context: .
+      dockerfile: deploy/namenode/Dockerfile
+    container_name: namenode-2
+    command:
+      - "--addr=8080"
+      - "--redis=redis:6379"
+      - "--db=1"
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    ports:
+      - protocol: tcp
+        target: 8080
+        published: 8090
 
   datanode1:
     depends_on: ["namenode1"]

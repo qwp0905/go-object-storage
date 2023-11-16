@@ -112,7 +112,6 @@ func ensureId(base string) (string, error) {
 
 func (n *DataNode) Live() {
 	for {
-		time.Sleep(time.Second * 30)
 		if err := n.rc.SetEx(
 			context.Background(),
 			HostKey(n.id),
@@ -121,5 +120,6 @@ func (n *DataNode) Live() {
 		).Err(); err != nil {
 			logger.Warnf("%+v", errors.WithStack(err))
 		}
+		time.Sleep(time.Second * 30)
 	}
 }

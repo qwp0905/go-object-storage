@@ -3,26 +3,34 @@ package namenode
 import (
 	"context"
 	"io"
-	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/internal/locker"
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
+	"github.com/redis/go-redis/v9"
 )
 
 type NameNode struct {
 	pool   *nodepool.NodePool
-	locker *sync.RWMutex
+	locker *locker.RWMutex
 }
 
-func New(pool *nodepool.NodePool) *NameNode {
-	return &NameNode{pool: pool, locker: new(sync.RWMutex)}
+func New(pool *nodepool.NodePool, rc *redis.Client) *NameNode {
+	return &NameNode{pool: pool, locker: locker.NewRWMutex(
+		rc,
+		"namenode",
+		time.Second*30,
+	)}
 }
 
 func (n *NameNode) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
-	n.locker.RLock()
-	defer n.locker.RUnlock()
+	if err := n.locker.RLock(ctx); err != nil {
+		return nil, err
+	}
+	defer n.locker.RUnlock(ctx)
 
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
@@ -43,15 +51,19 @@ func (n *NameNode) GetObject(ctx context.Context, key string) (io.Reader, error)
 		return nil, err
 	}
 
-	n.locker.RLock()
-	defer n.locker.RUnlock()
+	if err := n.locker.RLock(ctx); err != nil {
+		return nil, err
+	}
+	defer n.locker.RUnlock(ctx)
 
 	return n.pool.GetDirect(ctx, metadata)
 }
 
 func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]*datanode.Metadata, error) {
-	n.locker.RLock()
-	defer n.locker.RUnlock()
+	if err := n.locker.RLock(ctx); err != nil {
+		return nil, err
+	}
+	defer n.locker.RUnlock(ctx)
 
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
@@ -62,8 +74,10 @@ func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]
 }
 
 func (n *NameNode) PutObject(ctx context.Context, key string, size int, r io.Reader) error {
-	n.locker.Lock()
-	defer n.locker.Unlock()
+	if err := n.locker.Lock(ctx); err != nil {
+		return err
+	}
+	defer n.locker.Unlock(ctx)
 
 	root, err := n.pool.GetRootMetadata(ctx)
 	if err != nil {
@@ -87,8 +101,10 @@ func (n *NameNode) DeleteObject(ctx context.Context, key string) error {
 		return err
 	}
 
-	n.locker.Lock()
-	defer n.locker.Unlock()
+	if err := n.locker.Lock(ctx); err != nil {
+		return err
+	}
+	defer n.locker.Unlock(ctx)
 
 	if _, err := n.delete(ctx, n.pool.GetRootId(), key, root); err != nil {
 		return err

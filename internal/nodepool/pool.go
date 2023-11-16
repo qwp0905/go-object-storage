@@ -24,13 +24,13 @@ type NodeInfo struct {
 	Id string `json:"id"`
 }
 
-func NewNodePool(redisHost string, redisDB int) *NodePool {
+func NewNodePool(rc *redis.Client) *NodePool {
 	return &NodePool{
 		client:  &fasthttp.Client{MaxConnsPerHost: 1024},
 		rootKey: "/",
 		counter: counter(),
 		root:    nil,
-		rc:      redis.NewClient(&redis.Options{Addr: redisHost, DB: redisDB}),
+		rc:      rc,
 	}
 }
 
@@ -84,7 +84,8 @@ func (p *NodePool) findRoot(ctx context.Context) error {
 		return errors.WithStack(err)
 	}
 
-	for _, id := range ids {
+	for _, key := range ids {
+		id := datanode.IdFromKey(key)
 		if _, err := p.GetMetadata(ctx, id, p.rootKey); err != nil {
 			continue
 		}

@@ -49,10 +49,10 @@ func (p *NodePool) checkAround() error {
 		return errors.WithStack(err)
 	}
 
-	for _, id := range ids {
-		if err := p.healthCheck(ctx, id); err != nil {
+	for _, key := range ids {
+		if err := p.healthCheck(ctx, datanode.IdFromKey(key)); err != nil {
 			logger.Warnf("%+v", err)
-			if err := p.rc.Del(ctx, datanode.HostKey(id)).Err(); err != nil {
+			if err := p.rc.Del(ctx, key).Err(); err != nil {
 				logger.Warnf("%+v", err)
 			}
 			continue
