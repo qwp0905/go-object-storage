@@ -27,10 +27,10 @@ const readUnlockScript = `
 if redis.call("DECR", KEYS[2]) ~= 0 then
 	return 1
 end
-if redis.call("DEL", KEYS[2]) == 1 then
-	return redis.call("PUBLISH", KEYS[1], "")
+if redis.call("DEL", KEYS[2]) ~= 1 then
+	return 0
 end
-return 0
+return redis.call("PUBLISH", KEYS[1], "")
 `
 
 const writeLockScript = `
@@ -47,10 +47,10 @@ const writeUnlockScript = `
 if redis.call("GET", KEYS[1]) ~= ARGV[1] then
 	return 0
 end
-if redis.call("DEL", KEYS[1]) == 1 then
-	return redis.call("PUBLISH", KEYS[1], "")
+if redis.call("DEL", KEYS[1]) ~= 1 then
+	return 0
 end
-return 0
+return redis.call("PUBLISH", KEYS[1], "")
 `
 
 type RWMutex struct {
