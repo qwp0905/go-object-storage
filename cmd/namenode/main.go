@@ -16,22 +16,20 @@ var (
 	addr      uint
 	redisHost string
 	redisDb   int
-	master    bool
 )
 
 func main() {
 	flag.UintVar(&addr, "addr", 8080, "application addr")
 	flag.StringVar(&redisHost, "redis", "localhost:6379", "redis host")
 	flag.IntVar(&redisDb, "db", 1, "redis db")
-	flag.BoolVar(&master, "master", false, "is master node to check datanode health")
 
 	flag.Parse()
 
 	rc := redis.NewClient(&redis.Options{Addr: redisHost, DB: redisDb})
 	nodePool := nodepool.NewNodePool(rc)
-	nameNode := namenode.New(nodePool, rc)
-	if master {
-		go nodePool.CheckAliveNodes()
+	nameNode, err := namenode.New(nodePool, rc)
+	if err != nil {
+		panic(err)
 	}
 
 	healthController := api.NewHealth()

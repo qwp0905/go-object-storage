@@ -18,12 +18,12 @@ type NameNode struct {
 	locker *locker.RWMutex
 }
 
-func New(pool *nodepool.NodePool, rc *redis.Client) *NameNode {
-	return &NameNode{pool: pool, locker: locker.NewRWMutex(
-		rc,
-		"namenode",
-		time.Second*30,
-	)}
+func New(pool *nodepool.NodePool, rc *redis.Client) (*NameNode, error) {
+	locker, err := locker.NewRWMutex(rc, "namenode", time.Second*30)
+	if err != nil {
+		return nil, err
+	}
+	return &NameNode{pool: pool, locker: locker}, nil
 }
 
 func (n *NameNode) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {

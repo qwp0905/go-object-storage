@@ -67,7 +67,6 @@ func (p *NodePool) createRoot(ctx context.Context) error {
 		Key:       p.rootKey,
 		NextNodes: []*datanode.NextRoute{},
 	}
-
 	if err := p.PutMetadata(ctx, root, rootMeta); err != nil {
 		return err
 	}
