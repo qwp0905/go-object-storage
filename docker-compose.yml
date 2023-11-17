@@ -1,4 +1,39 @@
 services:
+  loadbalancer:
+    image: nginx:alpine
+    container_name: loadbalancer
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+    ports:
+      - protocol: tcp
+        target: 80
+        published: 50000
+    volumes:
+      - type: bind
+        source: .data/nginx.conf
+        target: /etc/nginx/nginx.conf
+
+  poolmanager:
+    depends_on: ["redis"]
+    build:
+      context: .
+      dockerfile: deploy/poolmanager/Dockerfile
+    container_name: pool-manager
+    command:
+      - "--redis=redis:6379"
+      - "--db=1"
+      - "--interval=30"
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+
   namenode1:
     depends_on: ["redis"]
     build:
@@ -9,7 +44,6 @@ services:
       - "--addr=8080"
       - "--redis=redis:6379"
       - "--db=1"
-      - "--master"
     deploy:
       mode: global
       resources:
@@ -20,6 +54,10 @@ services:
       - protocol: tcp
         target: 8080
         published: 8080
+    volumes:
+      - type: volume
+        source: redis
+        target: /data
 
   namenode2:
     depends_on: ["redis"]
@@ -149,3 +187,5 @@ volumes:
     name: datanode2
   datanode3:
     name: datanode3
+  redis:
+    name: redis

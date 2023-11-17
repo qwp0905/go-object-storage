@@ -94,3 +94,25 @@ func (p *NodePool) findRoot(ctx context.Context) error {
 
 	return errors.New("root node not found")
 }
+
+func (p *NodePool) GetNodeHost(ctx context.Context, id string) (string, error) {
+	host, err := p.rc.Get(ctx, datanode.HostKey(id)).Result()
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return host, nil
+}
+
+func (p *NodePool) AcquireNode(ctx context.Context) (string, error) {
+	ids, err := p.rc.Keys(ctx, datanode.HostKey("*")).Result()
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	if len(ids) == 0 {
+		return "", errors.New("no datanode registered...")
+	}
+
+	return datanode.IdFromKey(ids[p.counter(len(ids))]), nil
+}
