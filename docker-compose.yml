@@ -54,10 +54,6 @@ services:
       - protocol: tcp
         target: 8080
         published: 8080
-    volumes:
-      - type: volume
-        source: redis
-        target: /data
 
   namenode2:
     depends_on: ["redis"]
@@ -179,6 +175,10 @@ services:
         published: 6379
     environment:
       TZ: Asia/Seoul
+    volumes:
+      - type: volume
+        target: manager
+        source: /data
 
 volumes:
   datanode1:
@@ -187,5 +187,5 @@ volumes:
     name: datanode2
   datanode3:
     name: datanode3
-  redis:
-    name: redis
+  manager:
+    name: manager
