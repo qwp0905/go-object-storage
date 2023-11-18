@@ -44,6 +44,7 @@ func (c *nameNode) listObject(ctx *fiber.Ctx) error {
 		ctx.Context(),
 		ctx.Query("prefix"),
 		ctx.Query("delimiter"),
+		ctx.Query("after"),
 		ctx.QueryInt("limit", 1000),
 	)
 	if err != nil {

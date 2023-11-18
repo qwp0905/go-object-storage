@@ -76,7 +76,11 @@ type ObjectList struct {
 	ContentType  string    `json:"content-type"`
 }
 
-func (n *NameNode) ListObject(ctx context.Context, prefix, delimiter string, limit int) (*ListObjectResult, error) {
+func (n *NameNode) ListObject(
+	ctx context.Context,
+	prefix, delimiter, after string,
+	limit int,
+) (*ListObjectResult, error) {
 	if err := n.locker.RLock(ctx); err != nil {
 		return nil, err
 	}
@@ -87,13 +91,7 @@ func (n *NameNode) ListObject(ctx context.Context, prefix, delimiter string, lim
 		return nil, err
 	}
 
-	p, l, err := n.scan(
-		ctx,
-		prefix,
-		delimiter,
-		limit,
-		root,
-	)
+	p, l, err := n.scan(ctx, prefix, delimiter, after, limit, root)
 	if err != nil {
 		return nil, err
 	}

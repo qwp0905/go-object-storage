@@ -31,8 +31,7 @@ func (n *NameNode) get(ctx context.Context, id, key string, metadata *datanode.M
 
 func (n *NameNode) scan(
 	ctx context.Context,
-	prefix string,
-	delimiter string,
+	prefix, delimiter, after string,
 	limit int,
 	metadata *datanode.Metadata,
 ) (set, []*datanode.Metadata, error) {
@@ -42,12 +41,14 @@ func (n *NameNode) scan(
 	if delimiter != "" {
 		rt += fmt.Sprintf("[^%s]*", delimiter)
 	}
-	if matched := regexp.MustCompile(rt).FindString(metadata.Key); matched != "" {
-		if metadata.FileExists() && (delimiter == "" || matched == metadata.Key) {
-			list = append(list, metadata)
-		}
-		if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(metadata.Key) {
-			prefixes.add(matched + delimiter)
+	if metadata.Key > after {
+		if matched := regexp.MustCompile(rt).FindString(metadata.Key); matched != "" {
+			if metadata.FileExists() && (delimiter == "" || matched == metadata.Key) {
+				list = append(list, metadata)
+			}
+			if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(metadata.Key) {
+				prefixes.add(matched + delimiter)
+			}
 		}
 	}
 
@@ -61,7 +62,7 @@ func (n *NameNode) scan(
 			return nil, nil, err
 		}
 
-		s, l, err := n.scan(ctx, prefix, delimiter, limit, nextMeta)
+		s, l, err := n.scan(ctx, prefix, delimiter, after, limit, nextMeta)
 		if err != nil {
 			return nil, nil, err
 		}
