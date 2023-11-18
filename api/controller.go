@@ -1,7 +1,6 @@
 package api
 
 import (
-	"io"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -31,10 +30,4 @@ func (c *controllerImpl) Router() *fiber.App {
 
 func (c *controllerImpl) getPath(ctx *fiber.Ctx) string {
 	return strings.Replace(ctx.Path(), c.Path(), "", 1)
-}
-
-func mustClose(r io.Reader) {
-	if c, ok := r.(io.Closer); ok {
-		defer c.Close()
-	}
 }

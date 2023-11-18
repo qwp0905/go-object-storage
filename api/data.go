@@ -28,7 +28,6 @@ func (c *data) get(ctx *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	defer mustClose(out)
 
 	return ctx.SendStream(out)
 }

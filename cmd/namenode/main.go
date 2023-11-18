@@ -34,9 +34,10 @@ func main() {
 
 	healthController := api.NewHealth()
 	apiController := api.NewNameNode(nameNode)
+	metricsController := api.NewMetrics()
 
 	app = http.NewApplication()
-	app.Mount(healthController, apiController)
+	app.Mount(healthController, apiController, metricsController)
 	if err := app.Listen(addr); err != nil {
 		panic(err)
 	}

@@ -3,9 +3,11 @@ package nodepool
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/redis/go-redis/v9"
 	"github.com/valyala/fasthttp"
@@ -19,6 +21,28 @@ type PoolManager struct {
 
 func NewPoolManager(rc *redis.Client) *PoolManager {
 	return &PoolManager{rc: rc, http: &fasthttp.Client{}}
+}
+
+func (m *PoolManager) Start(sec int) {
+	ctx := context.Background()
+	timer := time.NewTicker(time.Second * time.Duration(sec))
+	for range timer.C {
+		nodes, err := m.GetAllNodes(ctx)
+		if err != nil {
+			logger.Errorf("%+v", err)
+			continue
+		}
+		for _, id := range nodes {
+			if err := m.HealthCheck(ctx, id); err == nil {
+				continue
+			}
+			logger.Errorf("%+v", err)
+			if err := m.SetNodeDown(ctx, id); err != nil {
+				logger.Errorf("%+v", err)
+				continue
+			}
+		}
+	}
 }
 
 func (m *PoolManager) GetAllNodes(ctx context.Context) ([]string, error) {

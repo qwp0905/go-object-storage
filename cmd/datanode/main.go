@@ -52,9 +52,10 @@ func main() {
 	dataController := api.NewData(node)
 	metaController := api.NewMeta(node)
 	healthController := api.NewHealth()
+	metricsController := api.NewMetrics()
 
 	app = http.NewApplication()
-	app.Mount(dataController, metaController, healthController)
+	app.Mount(dataController, metaController, healthController, metricsController)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
