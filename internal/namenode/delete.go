@@ -7,8 +7,19 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
-func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanode.Metadata) (*datanode.Metadata, error) {
+func (n *NameNode) delete(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
+	locker := n.lockerPool.Get(current)
+	metadata, err := n.pool.GetMetadata(ctx, id, current)
+	if err != nil {
+		return nil, err
+	}
+
 	if key == metadata.Key && metadata.FileExists() {
+		if err := locker.Lock(ctx); err != nil {
+			return nil, err
+		}
+		defer locker.Unlock(ctx)
+
 		if len(metadata.NextNodes) == 0 {
 			if err := n.pool.DeleteMetadata(ctx, id, key); err != nil {
 				return nil, err
@@ -32,17 +43,17 @@ func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanod
 			continue
 		}
 
-		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
-		if err != nil {
-			return nil, err
-		}
-
-		deleted, err := n.delete(ctx, next.NodeId, key, nextMeta)
+		deleted, err := n.delete(ctx, key, next.NodeId, next.Key)
 		if err != nil {
 			return nil, err
 		}
 
 		if deleted == nil {
+			if err := locker.Lock(ctx); err != nil {
+				return nil, err
+			}
+			defer locker.Unlock(ctx)
+
 			if len(metadata.NextNodes) == 1 &&
 				!metadata.FileExists() &&
 				metadata.Key != n.pool.GetRootKey() {
@@ -62,6 +73,10 @@ func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanod
 		}
 
 		if len(deleted.NextNodes) == 1 && !deleted.FileExists() {
+			if err := locker.Lock(ctx); err != nil {
+				return nil, err
+			}
+			defer locker.Unlock(ctx)
 			metadata.NextNodes[i] = deleted.NextNodes[0]
 			if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
 				return nil, err

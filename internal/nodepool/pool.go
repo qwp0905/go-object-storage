@@ -34,8 +34,20 @@ func NewNodePool(rc *redis.Client) *NodePool {
 	}
 }
 
-func (p *NodePool) GetRootId() string {
-	return p.root.Id
+func (p *NodePool) GetRootId(ctx context.Context) (string, error) {
+	if p.root != nil {
+		return p.root.Id, nil
+	}
+
+	if err := p.findRoot(ctx); err == nil {
+		return p.root.Id, nil
+	}
+
+	if err := p.createRoot(ctx); err != nil {
+		return "", err
+	}
+
+	return p.root.Id, nil
 }
 func (p *NodePool) GetRootKey() string {
 	return p.rootKey

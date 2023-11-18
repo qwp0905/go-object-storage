@@ -14,30 +14,25 @@ import (
 )
 
 type NameNode struct {
-	pool   *nodepool.NodePool
-	locker *locker.RWMutex
+	pool       *nodepool.NodePool
+	lockerPool *locker.LockerPool
 }
 
 func New(pool *nodepool.NodePool, rc *redis.Client) (*NameNode, error) {
-	locker, err := locker.NewRWMutex(rc, "namenode", time.Second*30)
+	lp, err := locker.NewPool(rc, time.Second*30)
 	if err != nil {
 		return nil, err
 	}
-	return &NameNode{pool: pool, locker: locker}, nil
+	return &NameNode{pool: pool, lockerPool: lp}, nil
 }
 
 func (n *NameNode) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
-	if err := n.locker.RLock(ctx); err != nil {
-		return nil, err
-	}
-	defer n.locker.RUnlock(ctx)
-
-	root, err := n.pool.GetRootMetadata(ctx)
+	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	_, metadata, err := n.get(ctx, n.pool.GetRootId(), key, root)
+	metadata, err := n.get(ctx, key, rootId, n.pool.GetRootKey())
 	if err != nil {
 		return nil, err
 	}
@@ -50,11 +45,6 @@ func (n *NameNode) GetObject(ctx context.Context, key string) (*datanode.Metadat
 	if err != nil {
 		return nil, nil, err
 	}
-
-	if err := n.locker.RLock(ctx); err != nil {
-		return nil, nil, err
-	}
-	defer n.locker.RUnlock(ctx)
 
 	r, err := n.pool.GetDirect(ctx, metadata)
 	if err != nil {
@@ -81,17 +71,12 @@ func (n *NameNode) ListObject(
 	prefix, delimiter, after string,
 	limit int,
 ) (*ListObjectResult, error) {
-	if err := n.locker.RLock(ctx); err != nil {
-		return nil, err
-	}
-	defer n.locker.RUnlock(ctx)
-
-	root, err := n.pool.GetRootMetadata(ctx)
+	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	p, l, err := n.scan(ctx, prefix, delimiter, after, limit, root)
+	p, l, err := n.scan(ctx, prefix, delimiter, after, limit, rootId, n.pool.GetRootKey())
 	if err != nil {
 		return nil, err
 	}
@@ -114,25 +99,15 @@ func (n *NameNode) ListObject(
 }
 
 func (n *NameNode) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
-	if err := n.locker.Lock(ctx); err != nil {
-		return err
-	}
-	defer n.locker.Unlock(ctx)
-
-	root, err := n.pool.GetRootMetadata(ctx)
+	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return err
 	}
 
-	return n.put(ctx, n.pool.GetRootId(), key, contentType, root, size, r)
+	return n.put(ctx, key, rootId, n.pool.GetRootKey(), contentType, size, r)
 }
 
 func (n *NameNode) DeleteObject(ctx context.Context, key string) error {
-	root, err := n.pool.GetRootMetadata(ctx)
-	if err != nil {
-		return err
-	}
-
 	metadata, err := n.HeadObject(ctx, key)
 	if err != nil {
 		if err == fiber.ErrNotFound {
@@ -141,12 +116,12 @@ func (n *NameNode) DeleteObject(ctx context.Context, key string) error {
 		return err
 	}
 
-	if err := n.locker.Lock(ctx); err != nil {
+	rootId, err := n.pool.GetRootId(ctx)
+	if err != nil {
 		return err
 	}
-	defer n.locker.Unlock(ctx)
 
-	if _, err := n.delete(ctx, n.pool.GetRootId(), key, root); err != nil {
+	if _, err := n.delete(ctx, key, rootId, n.pool.GetRootKey()); err != nil {
 		return err
 	}
 

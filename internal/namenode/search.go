@@ -10,31 +10,48 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
-func (n *NameNode) get(ctx context.Context, id, key string, metadata *datanode.Metadata) (string, *datanode.Metadata, error) {
-	if key == metadata.Key && metadata.FileExists() {
-		return id, metadata, nil
+func (n *NameNode) get(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
+	locker := n.lockerPool.Get(current)
+	if err := locker.RLock(ctx); err != nil {
+		return nil, err
 	}
+	defer locker.RUnlock(ctx)
+
+	metadata, err := n.pool.GetMetadata(ctx, id, key)
+	if err != nil {
+		return nil, err
+	}
+	if key == metadata.Key && metadata.FileExists() {
+		return metadata, nil
+	}
+
 	for _, next := range metadata.NextNodes {
 		if !strings.HasPrefix(key, next.Key) {
 			continue
 		}
-
-		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
-		if err != nil {
-			return "", nil, err
-		}
-		return n.get(ctx, next.NodeId, key, nextMeta)
+		return n.get(ctx, key, next.NodeId, next.Key)
 	}
 
-	return "", nil, fiber.ErrNotFound
+	return nil, fiber.ErrNotFound
 }
 
 func (n *NameNode) scan(
 	ctx context.Context,
 	prefix, delimiter, after string,
 	limit int,
-	metadata *datanode.Metadata,
+	id, current string,
 ) (set, []*datanode.Metadata, error) {
+	locker := n.lockerPool.Get(current)
+	if err := locker.RLock(ctx); err != nil {
+		return nil, nil, err
+	}
+	defer locker.RUnlock(ctx)
+
+	metadata, err := n.pool.GetMetadata(ctx, id, current)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	prefixes := set{}
 	list := make([]*datanode.Metadata, 0)
 	rt := fmt.Sprintf("^%s", prefix)
@@ -57,12 +74,7 @@ func (n *NameNode) scan(
 			continue
 		}
 
-		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		s, l, err := n.scan(ctx, prefix, delimiter, after, limit, nextMeta)
+		s, l, err := n.scan(ctx, prefix, delimiter, after, limit, next.NodeId, next.Key)
 		if err != nil {
 			return nil, nil, err
 		}

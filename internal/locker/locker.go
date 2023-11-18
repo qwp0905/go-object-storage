@@ -79,7 +79,7 @@ func NewRWMutex(rc *redis.Client, key string, timeout time.Duration) (*RWMutex, 
 			return nil, errors.WithStack(err)
 		}
 	}
-	return &RWMutex{rc: rc, timeout: timeout}, nil
+	return &RWMutex{rc: rc, timeout: timeout, key: key}, nil
 }
 
 func (l *RWMutex) RLock(ctx context.Context) error {
@@ -151,4 +151,36 @@ func (l *RWMutex) Unlock(ctx context.Context) error {
 		[]string{l.key},
 		l.current,
 	).Err())
+}
+
+type LockerPool struct {
+	rc      *redis.Client
+	timeout time.Duration
+}
+
+func NewPool(rc *redis.Client, timeout time.Duration) (*LockerPool, error) {
+	ctx := context.Background()
+	for _, s := range []*redis.Script{
+		readLockScript,
+		readUnlockScript,
+		writeLockScript,
+		writeUnlockScript,
+	} {
+		ok, err := s.Exists(ctx, rc).Result()
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if ok[0] {
+			continue
+		}
+		if err := s.Load(ctx, rc).Err(); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+	return &LockerPool{rc: rc, timeout: timeout}, nil
+}
+
+// buffer pool에서 가져다 쓰는 것 고려 필요...
+func (p *LockerPool) Get(key string) *RWMutex {
+	return &RWMutex{rc: p.rc, timeout: p.timeout, key: key}
 }
