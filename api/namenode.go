@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/qwp0905/go-object-storage/internal/namenode"
@@ -35,6 +36,7 @@ func (c *nameNode) getObject(ctx *fiber.Ctx) error {
 		return err
 	}
 	ctx.Set("Content-Type", meta.Type)
+	ctx.Set("Last-Modified", meta.LastModified.Format(time.RFC1123))
 
 	return ctx.SendStream(obj, int(meta.Size))
 }
@@ -84,6 +86,7 @@ func (c *nameNode) headObject(ctx *fiber.Ctx) error {
 	}
 	ctx.Set("Content-Type", meta.Type)
 	ctx.Set("Content-Length", fmt.Sprintf("%d", meta.Size))
+	ctx.Set("Last-Modified", meta.LastModified.Format(time.RFC1123))
 
 	return ctx.Status(fiber.StatusOK).Send(nil)
 }
