@@ -43,7 +43,7 @@ func (n *NameNode) scan(
 		rt += fmt.Sprintf("[^%s]*", delimiter)
 	}
 	if matched := regexp.MustCompile(rt).FindString(metadata.Key); matched != "" {
-		if matched == metadata.Key && metadata.FileExists() {
+		if metadata.FileExists() && (delimiter == "" || matched == metadata.Key) {
 			list = append(list, metadata)
 		}
 		if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(metadata.Key) {

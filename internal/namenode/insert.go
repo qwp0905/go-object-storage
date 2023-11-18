@@ -110,9 +110,16 @@ func (n *NameNode) put(
 		return err
 	}
 
-	metadata.NextNodes = append(metadata.NextNodes, &datanode.NextRoute{
-		Key:    key,
-		NodeId: metadataId,
-	})
+	index := 0
+	for i := range metadata.NextNodes {
+		if metadata.NextNodes[i].Key > key {
+			break
+		}
+		index++
+	}
+	metadata.NextNodes = append(metadata.NextNodes, &datanode.NextRoute{})
+	copy(metadata.NextNodes[index+1:], metadata.NextNodes[index:])
+	metadata.NextNodes[index] = &datanode.NextRoute{Key: key, NodeId: metadataId}
+
 	return n.pool.PutMetadata(ctx, id, metadata)
 }
