@@ -45,18 +45,23 @@ func (n *NameNode) HeadObject(ctx context.Context, key string) (*datanode.Metada
 	return metadata, nil
 }
 
-func (n *NameNode) GetObject(ctx context.Context, key string) (io.Reader, error) {
+func (n *NameNode) GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error) {
 	metadata, err := n.HeadObject(ctx, key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := n.locker.RLock(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer n.locker.RUnlock(ctx)
 
-	return n.pool.GetDirect(ctx, metadata)
+	r, err := n.pool.GetDirect(ctx, metadata)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return metadata, r, nil
 }
 
 func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]*datanode.Metadata, error) {
@@ -73,7 +78,7 @@ func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]
 	return n.scan(ctx, prefix, limit, root)
 }
 
-func (n *NameNode) PutObject(ctx context.Context, key string, size int, r io.Reader) error {
+func (n *NameNode) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
 	if err := n.locker.Lock(ctx); err != nil {
 		return err
 	}
@@ -84,7 +89,7 @@ func (n *NameNode) PutObject(ctx context.Context, key string, size int, r io.Rea
 		return err
 	}
 
-	return n.put(ctx, n.pool.GetRootId(), key, root, size, r)
+	return n.put(ctx, n.pool.GetRootId(), key, contentType, root, size, r)
 }
 
 func (n *NameNode) DeleteObject(ctx context.Context, key string) error {

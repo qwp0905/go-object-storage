@@ -43,11 +43,9 @@ func (n *NameNode) delete(ctx context.Context, id, key string, metadata *datanod
 		}
 
 		if deleted == nil {
-			if len(metadata.NextNodes) == 1 && !metadata.FileExists() {
-				if metadata.Key == n.pool.GetRootKey() {
-					return metadata, nil
-				}
-
+			if len(metadata.NextNodes) == 1 &&
+				!metadata.FileExists() &&
+				metadata.Key != n.pool.GetRootKey() {
 				if err := n.pool.DeleteMetadata(ctx, id, metadata.Key); err != nil {
 					return nil, err
 				}

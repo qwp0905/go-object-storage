@@ -9,7 +9,7 @@ import (
 type pageTable struct {
 	accessed  *queue
 	pages     map[string]*page
-	locker    *sync.Mutex
+	locker    *sync.RWMutex
 	allocated int
 }
 
@@ -17,7 +17,7 @@ func newPageTable() *pageTable {
 	return &pageTable{
 		accessed:  newQueue(),
 		pages:     make(map[string]*page),
-		locker:    new(sync.Mutex),
+		locker:    new(sync.RWMutex),
 		allocated: 0,
 	}
 }
@@ -47,7 +47,7 @@ func (t *pageTable) allocate(p *page) {
 	logger.Infof("%s allocated", p.key)
 }
 
-func (t *pageTable) deAllocate(key string) {
+func (t *pageTable) deallocate(key string) {
 	t.locker.Lock()
 	defer t.locker.Unlock()
 	page, ok := t.pages[key]
@@ -62,8 +62,8 @@ func (t *pageTable) deAllocate(key string) {
 }
 
 func (t *pageTable) toList() []*page {
-	t.locker.Lock()
-	defer t.locker.Unlock()
+	t.locker.RLock()
+	defer t.locker.RUnlock()
 	out := make([]*page, 0)
 	e := t.accessed.last()
 	for e != nil {
@@ -74,8 +74,8 @@ func (t *pageTable) toList() []*page {
 }
 
 func (t *pageTable) oldest() *page {
-	t.locker.Lock()
-	defer t.locker.Unlock()
+	t.locker.RLock()
+	defer t.locker.RUnlock()
 	e := t.accessed.first()
 	if e == nil {
 		return nil

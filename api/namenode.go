@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,18 +31,20 @@ func NewNameNode(svc *namenode.NameNode) *nameNode {
 }
 
 func (c *nameNode) getObject(ctx *fiber.Ctx) error {
-	obj, err := c.svc.GetObject(ctx.Context(), c.getPath(ctx))
+	meta, obj, err := c.svc.GetObject(ctx.Context(), c.getPath(ctx))
 	if err != nil {
 		return err
 	}
+	ctx.Set("Content-Type", meta.Type)
 
-	return ctx.SendStream(obj)
+	return ctx.SendStream(obj, int(meta.Size))
 }
 
 type listObjectResponse struct {
 	Key          string    `json:"key"`
 	Size         uint      `json:"size"`
 	LastModified time.Time `json:"last_modified"`
+	ContentType  string    `json:"content-type"`
 }
 
 func (c *nameNode) listObject(ctx *fiber.Ctx) error {
@@ -56,6 +59,7 @@ func (c *nameNode) listObject(ctx *fiber.Ctx) error {
 			Key:          meta.Key,
 			Size:         meta.Size,
 			LastModified: meta.LastModified,
+			ContentType:  meta.Type,
 		})
 	}
 
@@ -67,6 +71,7 @@ func (c *nameNode) putObject(ctx *fiber.Ctx) error {
 	if err := c.svc.PutObject(
 		ctx.Context(),
 		c.getPath(ctx),
+		ctx.Get("Content-Type", "text/plain"),
 		ctx.Request().Header.ContentLength(),
 		body,
 	); err != nil {
@@ -85,9 +90,12 @@ func (c *nameNode) deleteObject(ctx *fiber.Ctx) error {
 }
 
 func (c *nameNode) headObject(ctx *fiber.Ctx) error {
-	if _, err := c.svc.HeadObject(ctx.Context(), c.getPath(ctx)); err != nil {
+	meta, err := c.svc.HeadObject(ctx.Context(), c.getPath(ctx))
+	if err != nil {
 		return err
 	}
+	ctx.Set("Content-Type", meta.Type)
+	ctx.Set("Content-Length", fmt.Sprintf("%d", meta.Size))
 
-	return ctx.Status(fiber.StatusOK).SendString("OK")
+	return ctx.Status(fiber.StatusOK).Send(nil)
 }

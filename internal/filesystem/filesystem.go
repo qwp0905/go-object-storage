@@ -14,16 +14,21 @@ func NewFileSystem() *FileSystem {
 	return &FileSystem{}
 }
 
-func (f *FileSystem) ReadFile(key string) (*os.File, error) {
+func (f *FileSystem) ReadFile(key string) (*os.File, int, error) {
 	file, err := os.Open(key)
 	if os.IsNotExist(err) {
-		return nil, errors.WithStack(fiber.ErrNotFound)
+		return nil, 0, errors.WithStack(fiber.ErrNotFound)
 	}
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, 0, errors.WithStack(err)
 	}
 
-	return file, nil
+	info, err := file.Stat()
+	if err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	return file, int(info.Size()), nil
 }
 
 func (f *FileSystem) WriteFile(key string, r io.Reader) (uint, error) {

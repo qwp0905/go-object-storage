@@ -27,7 +27,7 @@ func compare(a, b string) string {
 func (n *NameNode) put(
 	ctx context.Context,
 	id string,
-	key string,
+	key, contentType string,
 	metadata *datanode.Metadata,
 	size int,
 	r io.Reader,
@@ -35,6 +35,7 @@ func (n *NameNode) put(
 	if key == metadata.Key {
 		metadata.Size = uint(size)
 		metadata.LastModified = time.Now()
+		metadata.Type = contentType
 		if !metadata.FileExists() {
 			nodeId, err := n.pool.AcquireNode(ctx)
 			if err != nil {
@@ -63,7 +64,7 @@ func (n *NameNode) put(
 		}
 
 		if matched == nextMeta.Key {
-			return n.put(ctx, next.NodeId, key, nextMeta, size, r)
+			return n.put(ctx, next.NodeId, key, contentType, nextMeta, size, r)
 		}
 
 		nodeId, err := n.pool.AcquireNode(ctx)
@@ -81,7 +82,7 @@ func (n *NameNode) put(
 			return err
 		}
 
-		return n.put(ctx, nodeId, key, newMeta, size, r)
+		return n.put(ctx, nodeId, key, contentType, newMeta, size, r)
 	}
 
 	dataId, err := n.pool.AcquireNode(ctx)
@@ -93,6 +94,7 @@ func (n *NameNode) put(
 		Key:          key,
 		Source:       generateKey(),
 		LastModified: time.Now(),
+		Type:         contentType,
 		Size:         uint(size),
 		NextNodes:    make([]*datanode.NextRoute, 0),
 	}

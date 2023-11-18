@@ -3,7 +3,6 @@ package bufferpool
 import (
 	"io"
 
-	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
@@ -41,22 +40,17 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 		return page.getData(), nil
 	}
 
-	f, err := p.fs.ReadFile(key)
+	f, size, err := p.fs.ReadFile(key)
 	if err != nil {
 		return nil, err
 	}
 
-	info, err := f.Stat()
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	if !p.isAvailable(int(info.Size())) {
+	if !p.isAvailable(size) {
 		return f, nil
 	}
 	defer f.Close()
 
-	if err := p.flush(int(info.Size())); err != nil {
+	if err := p.acquire(size); err != nil {
 		return nil, err
 	}
 
@@ -74,7 +68,7 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 		if _, err := p.fs.WriteFile(key, r); err != nil {
 			return err
 		}
-		p.table.deAllocate(key)
+		p.table.deallocate(key)
 		return nil
 	}
 
@@ -83,7 +77,7 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 		size -= page.getSize()
 	}
 
-	if err := p.flush(size); err != nil {
+	if err := p.acquire(size); err != nil {
 		return err
 	}
 
@@ -98,7 +92,7 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 }
 
 func (p *BufferPool) Delete(key string) error {
-	defer p.table.deAllocate(key)
+	defer p.table.deallocate(key)
 	return p.fs.RemoveFile(key)
 }
 

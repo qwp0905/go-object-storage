@@ -11,10 +11,11 @@ import (
 
 type Metadata struct {
 	Key          string       `json:"key"`
-	Source       string       `json:"source"`
-	Size         uint         `json:"size"`
-	NodeId       string       `json:"node_id"`
-	LastModified time.Time    `json:"last_modified"`
+	Source       string       `json:"source,omitempty"`
+	Size         uint         `json:"size,omitempty"`
+	Type         string       `json:"type,omitempty"`
+	NodeId       string       `json:"node_id,omitempty"`
+	LastModified time.Time    `json:"last_modified,omitempty"`
 	NextNodes    []*NextRoute `json:"next_nodes"`
 }
 
@@ -24,7 +25,7 @@ type NextRoute struct {
 }
 
 func (m *Metadata) FileExists() bool {
-	return m.Source != ""
+	return m.Source != "" && m.NodeId != ""
 }
 
 func (d *DataNode) GetMetadata(key string) (*Metadata, error) {

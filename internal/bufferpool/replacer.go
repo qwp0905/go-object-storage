@@ -21,10 +21,10 @@ func (p *BufferPool) victim(size int) error {
 	}
 
 	s := page.getSize()
-	p.table.deAllocate(page.key)
+	p.table.deallocate(page.key)
 	return p.victim(size - s)
 }
 
-func (p *BufferPool) flush(size int) error {
+func (p *BufferPool) acquire(size int) error {
 	return p.victim(size - p.available())
 }
