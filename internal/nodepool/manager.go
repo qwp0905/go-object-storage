@@ -27,17 +27,17 @@ func (m *PoolManager) Start(sec int) {
 	ctx := context.Background()
 	timer := time.NewTicker(time.Second * time.Duration(sec))
 	for range timer.C {
-		nodes, err := m.GetAllNodes(ctx)
+		nodes, err := m.getAllNodes(ctx)
 		if err != nil {
 			logger.Errorf("%+v", err)
 			continue
 		}
 		for _, id := range nodes {
-			if err := m.HealthCheck(ctx, id); err == nil {
+			if err := m.healthCheck(ctx, id); err == nil {
 				continue
 			}
 			logger.Errorf("%+v", err)
-			if err := m.SetNodeDown(ctx, id); err != nil {
+			if err := m.setNodeDown(ctx, id); err != nil {
 				logger.Errorf("%+v", err)
 				continue
 			}
@@ -45,7 +45,7 @@ func (m *PoolManager) Start(sec int) {
 	}
 }
 
-func (m *PoolManager) GetAllNodes(ctx context.Context) ([]string, error) {
+func (m *PoolManager) getAllNodes(ctx context.Context) ([]string, error) {
 	keys, err := m.rc.Keys(ctx, datanode.HostKey("*")).Result()
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -59,11 +59,11 @@ func (m *PoolManager) GetAllNodes(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-func (n *PoolManager) SetNodeDown(ctx context.Context, id string) error {
+func (n *PoolManager) setNodeDown(ctx context.Context, id string) error {
 	return errors.WithStack(n.rc.Del(ctx, datanode.HostKey(id)).Err())
 }
 
-func (n *PoolManager) HealthCheck(ctx context.Context, id string) error {
+func (n *PoolManager) healthCheck(ctx context.Context, id string) error {
 	host, err := n.rc.Get(ctx, datanode.HostKey(id)).Result()
 	if err != nil {
 		return errors.WithStack(err)
