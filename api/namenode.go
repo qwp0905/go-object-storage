@@ -64,7 +64,12 @@ func (c *nameNode) listObject(ctx *fiber.Ctx) error {
 
 func (c *nameNode) putObject(ctx *fiber.Ctx) error {
 	body := bytes.NewReader(ctx.BodyRaw())
-	if err := c.svc.PutObject(ctx.Context(), c.getPath(ctx), ctx.Request().Header.ContentLength(), body); err != nil {
+	if err := c.svc.PutObject(
+		ctx.Context(),
+		c.getPath(ctx),
+		ctx.Request().Header.ContentLength(),
+		body,
+	); err != nil {
 		return err
 	}
 

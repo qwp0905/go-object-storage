@@ -3,8 +3,8 @@ package nodepool
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 
+	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"

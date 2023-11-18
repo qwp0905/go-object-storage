@@ -2,9 +2,10 @@ package datanode
 
 import (
 	"bytes"
-	"encoding/json"
+
 	"time"
 
+	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 )
 

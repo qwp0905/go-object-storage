@@ -3,11 +3,11 @@ package nodepool
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sync/atomic"
 
+	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
@@ -50,7 +50,7 @@ func (p *NodePool) PutDirect(ctx context.Context, metadata *datanode.Metadata, r
 	}
 
 	data := new(datanode.Metadata)
-	if err := json.NewDecoder(bytes.NewBuffer(res.Body())).Decode(data); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(res.Body())).Decode(data); err != nil {
 		return nil, errors.WithStack(err)
 	}
 

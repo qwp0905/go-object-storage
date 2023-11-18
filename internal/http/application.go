@@ -3,6 +3,7 @@ package http
 import (
 	"fmt"
 
+	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/api"
@@ -16,6 +17,8 @@ type Application struct {
 func NewApplication() *Application {
 	source := fiber.New(fiber.Config{
 		StreamRequestBody: true,
+		JSONEncoder:       json.Marshal,
+		JSONDecoder:       json.Unmarshal,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 

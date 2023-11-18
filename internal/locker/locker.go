@@ -98,6 +98,7 @@ func (l *RWMutex) RLock(ctx context.Context) error {
 		if pttl == -10 {
 			return nil
 		}
+
 		select {
 		case <-sub.Channel():
 		case <-time.After(time.Duration(pttl) * time.Millisecond):

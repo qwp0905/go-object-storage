@@ -1,13 +1,14 @@
 services:
   loadbalancer:
+    depends_on: ["namenode1", "namenode2"]
     image: nginx:alpine
     container_name: loadbalancer
     deploy:
       mode: global
       resources:
         limits:
-          cpus: "1"
-          memory: 1G
+          cpus: "0.25"
+          memory: 256M
     ports:
       - protocol: tcp
         target: 80
@@ -177,8 +178,8 @@ services:
       TZ: Asia/Seoul
     volumes:
       - type: volume
-        target: manager
-        source: /data
+        source: manager
+        target: /data
 
 volumes:
   datanode1:
