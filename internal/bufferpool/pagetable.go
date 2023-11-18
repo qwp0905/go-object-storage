@@ -2,8 +2,6 @@ package bufferpool
 
 import (
 	"sync"
-
-	"github.com/qwp0905/go-object-storage/pkg/logger"
 )
 
 type pageTable struct {
@@ -44,7 +42,6 @@ func (t *pageTable) allocate(p *page) {
 	t.allocated += p.getSize()
 	t.pages[p.key] = p
 	t.accessed.pushBack(p.lastAccess)
-	logger.Infof("%s allocated", p.key)
 }
 
 func (t *pageTable) deallocate(key string) {
@@ -58,7 +55,6 @@ func (t *pageTable) deallocate(key string) {
 	t.accessed.remove(page.lastAccess)
 	delete(t.pages, key)
 	page.clear()
-	logger.Infof("%s deallocated", key)
 }
 
 func (t *pageTable) toList() []*page {

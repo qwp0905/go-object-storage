@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/qwp0905/go-object-storage/internal/namenode"
@@ -40,30 +39,18 @@ func (c *nameNode) getObject(ctx *fiber.Ctx) error {
 	return ctx.SendStream(obj, int(meta.Size))
 }
 
-type listObjectResponse struct {
-	Key          string    `json:"key"`
-	Size         uint      `json:"size"`
-	LastModified time.Time `json:"last_modified"`
-	ContentType  string    `json:"content-type"`
-}
-
 func (c *nameNode) listObject(ctx *fiber.Ctx) error {
-	list, err := c.svc.ListObject(ctx.Context(), ctx.Query("prefix"), ctx.QueryInt("limit", 1000))
+	list, err := c.svc.ListObject(
+		ctx.Context(),
+		ctx.Query("prefix"),
+		ctx.Query("delimiter"),
+		ctx.QueryInt("limit", 1000),
+	)
 	if err != nil {
 		return err
 	}
 
-	out := []*listObjectResponse{}
-	for _, meta := range list {
-		out = append(out, &listObjectResponse{
-			Key:          meta.Key,
-			Size:         meta.Size,
-			LastModified: meta.LastModified,
-			ContentType:  meta.Type,
-		})
-	}
-
-	return ctx.Status(fiber.StatusOK).JSON(out)
+	return ctx.Status(fiber.StatusOK).JSON(list)
 }
 
 func (c *nameNode) putObject(ctx *fiber.Ctx) error {

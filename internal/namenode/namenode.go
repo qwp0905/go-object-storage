@@ -64,7 +64,19 @@ func (n *NameNode) GetObject(ctx context.Context, key string) (*datanode.Metadat
 	return metadata, r, nil
 }
 
-func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]*datanode.Metadata, error) {
+type ListObjectResult struct {
+	Prefixes []string     `json:"prefixes,omitempty"`
+	List     []ObjectList `json:"list,omitempty"`
+}
+
+type ObjectList struct {
+	Key          string    `json:"key"`
+	Size         uint      `json:"size"`
+	LastModified time.Time `json:"last_modified"`
+	ContentType  string    `json:"content-type"`
+}
+
+func (n *NameNode) ListObject(ctx context.Context, prefix, delimiter string, limit int) (*ListObjectResult, error) {
 	if err := n.locker.RLock(ctx); err != nil {
 		return nil, err
 	}
@@ -75,7 +87,32 @@ func (n *NameNode) ListObject(ctx context.Context, prefix string, limit int) ([]
 		return nil, err
 	}
 
-	return n.scan(ctx, prefix, limit, root)
+	p, l, err := n.scan(
+		ctx,
+		prefix,
+		delimiter,
+		limit,
+		root,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	prefixes := make([]string, 0)
+	for k := range p {
+		prefixes = append(prefixes, k)
+	}
+	list := make([]ObjectList, len(l))
+	for i, v := range l {
+		list[i] = ObjectList{
+			Size:         v.Size,
+			LastModified: v.LastModified,
+			Key:          v.Key,
+			ContentType:  v.Type,
+		}
+	}
+
+	return &ListObjectResult{Prefixes: prefixes, List: list}, nil
 }
 
 func (n *NameNode) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {

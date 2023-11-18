@@ -2,6 +2,8 @@ package namenode
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -27,57 +29,62 @@ func (n *NameNode) get(ctx context.Context, id, key string, metadata *datanode.M
 	return "", nil, fiber.ErrNotFound
 }
 
-func (n *NameNode) scan(ctx context.Context, key string, limit int, metadata *datanode.Metadata) ([]*datanode.Metadata, error) {
-	out := []*datanode.Metadata{}
-	if strings.HasPrefix(metadata.Key, key) {
-		if metadata.FileExists() {
-			out = append(out, metadata)
+func (n *NameNode) scan(
+	ctx context.Context,
+	prefix string,
+	delimiter string,
+	limit int,
+	metadata *datanode.Metadata,
+) (set, []*datanode.Metadata, error) {
+	prefixes := set{}
+	list := make([]*datanode.Metadata, 0)
+	rt := fmt.Sprintf("^%s", prefix)
+	if delimiter != "" {
+		rt += fmt.Sprintf("[^%s]*", delimiter)
+	}
+	if matched := regexp.MustCompile(rt).FindString(metadata.Key); matched != "" {
+		if matched == metadata.Key && metadata.FileExists() {
+			list = append(list, metadata)
 		}
-
-		for _, next := range metadata.NextNodes {
-			nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
-			if err != nil {
-				return nil, err
-			}
-
-			r, err := n.scan(ctx, key, limit, nextMeta)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, v := range r {
-				if len(out) == limit {
-					return out, nil
-				}
-				out = append(out, v)
-			}
+		if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(metadata.Key) {
+			prefixes.add(matched + delimiter)
 		}
-
-		return out, nil
 	}
 
 	for _, next := range metadata.NextNodes {
-		if !(strings.HasPrefix(key, next.Key) || strings.HasPrefix(next.Key, key)) {
+		if !(strings.HasPrefix(prefix, next.Key) || strings.HasPrefix(next.Key, prefix)) {
 			continue
 		}
 
 		nextMeta, err := n.pool.GetMetadata(ctx, next.NodeId, next.Key)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		r, err := n.scan(ctx, key, limit, nextMeta)
+		s, l, err := n.scan(ctx, prefix, delimiter, limit, nextMeta)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-
-		for _, v := range r {
-			if len(out) == limit {
-				return out, nil
+		prefixes.union(s)
+		for _, v := range l {
+			if len(list) == limit {
+				return prefixes, list, nil
 			}
-			out = append(out, v)
+			list = append(list, v)
 		}
 	}
 
-	return out, nil
+	return prefixes, list, nil
+}
+
+type set map[string]struct{}
+
+func (s set) add(key string) {
+	s[key] = struct{}{}
+}
+
+func (s set) union(u set) {
+	for k := range u {
+		s.add(k)
+	}
 }

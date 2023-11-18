@@ -113,7 +113,6 @@ func (p *BufferPool) lazyWrite(pg *page) {
 	for i := 0; i < p.retry; i++ {
 		if _, err := p.fs.WriteFile(pg.key, pg.getData()); err == nil {
 			pg.clearDirty()
-			logger.Infof("%s written...", pg.key)
 			return
 		}
 	}

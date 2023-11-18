@@ -111,14 +111,21 @@ func ensureId(base string) (string, error) {
 }
 
 func (n *DataNode) Live() {
+	if err := n.register(); err != nil {
+		logger.Warnf("%+v", errors.WithStack(err))
+	}
 	for range time.NewTicker(time.Second * 30).C {
-		if err := n.rc.SetEx(
-			context.Background(),
-			HostKey(n.id),
-			n.config.Host,
-			time.Hour,
-		).Err(); err != nil {
+		if err := n.register(); err != nil {
 			logger.Warnf("%+v", errors.WithStack(err))
 		}
 	}
+}
+
+func (n *DataNode) register() error {
+	return errors.WithStack(n.rc.SetEx(
+		context.Background(),
+		HostKey(n.id),
+		n.config.Host,
+		time.Hour,
+	).Err())
 }
