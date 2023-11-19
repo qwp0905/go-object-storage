@@ -23,6 +23,7 @@ var (
 	redisDB   int
 	addr      uint
 	host      string
+	logLevel  string
 )
 
 func main() {
@@ -31,8 +32,11 @@ func main() {
 	flag.StringVar(&baseDir, "base", "/var/lib/datanode/", "base directory")
 	flag.StringVar(&host, "host", "", "host which to be register in redis")
 	flag.UintVar(&addr, "addr", 8080, "application port")
+	flag.StringVar(&logLevel, "log-level", "info", "log level")
 
 	flag.Parse()
+
+	logger.Config(logLevel)
 
 	fs := filesystem.NewFileSystem()
 	bp := bufferpool.NewBufferPool(int(float64(os.Getpagesize()*bufferpool.MB)*0.8), fs)

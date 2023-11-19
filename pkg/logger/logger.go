@@ -10,13 +10,50 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type logLevel int
+
 var (
-	stdout = log.New(os.Stdout, "", 0)
-	stderr = log.New(os.Stderr, "", 0)
+	stdout     = log.New(os.Stdout, "", 0)
+	stderr     = log.New(os.Stderr, "", 0)
+	levelDebug = logLevel(0)
+	levelInfo  = logLevel(1)
+	levelWarn  = logLevel(2)
+	levelError = logLevel(3)
+
+	m = map[logLevel]string{
+		levelDebug: "debug",
+		levelInfo:  "info",
+		levelWarn:  "warn",
+		levelError: "error",
+	}
+
+	defaultLevel = levelInfo
 )
 
+func Config(level string) {
+	switch level {
+	case "debug":
+		defaultLevel = levelDebug
+	case "info":
+		defaultLevel = levelInfo
+	case "warn":
+		defaultLevel = levelWarn
+	case "error":
+		defaultLevel = levelError
+	default:
+		Warnf("unknown log level %s", level)
+	}
+}
+
+func getLevel(level logLevel) string {
+	return m[level]
+}
+
 func Error(message string) {
-	stderr.Print(format("error", message))
+	if defaultLevel > levelError {
+		return
+	}
+	stderr.Print(format(levelError, message))
 }
 
 func Errorf(f string, v ...any) {
@@ -24,7 +61,10 @@ func Errorf(f string, v ...any) {
 }
 
 func Info(message string) {
-	stdout.Print(format("info", message))
+	if defaultLevel > levelInfo {
+		return
+	}
+	stdout.Print(format(levelInfo, message))
 }
 
 func Infof(f string, v ...any) {
@@ -32,7 +72,10 @@ func Infof(f string, v ...any) {
 }
 
 func Debug(message string) {
-	stdout.Print(format("debug", message))
+	if defaultLevel > levelDebug {
+		return
+	}
+	stdout.Print(format(levelDebug, message))
 }
 
 func Debugf(f string, v ...any) {
@@ -40,7 +83,10 @@ func Debugf(f string, v ...any) {
 }
 
 func Warn(message string) {
-	stdout.Print(format("warn", message))
+	if defaultLevel > levelWarn {
+		return
+	}
+	stdout.Print(format(levelWarn, message))
 }
 
 func Warnf(f string, v ...any) {
@@ -48,7 +94,7 @@ func Warnf(f string, v ...any) {
 }
 
 func Fatal(err error) {
-	stderr.Print(format("error", fmt.Sprintf("%+v", err)))
+	Errorf("%+v", err)
 	os.Exit(1)
 }
 
@@ -58,9 +104,9 @@ type jsonLog struct {
 	At      string `json:"at"`
 }
 
-func format(level, message string) string {
+func format(level logLevel, message string) string {
 	l := &jsonLog{
-		Level:   level,
+		Level:   getLevel(level),
 		Message: message,
 		At:      localDateTime(),
 	}
@@ -75,13 +121,16 @@ func localDateTime() string {
 }
 
 func CtxError(ctx *fiber.Ctx, err error) {
+	if defaultLevel > levelError {
+		return
+	}
 	l := &ctxLog{
 		Path:    ctx.Path(),
 		At:      time.Now(),
 		Message: fmt.Sprintf("%+v", err),
 		Query:   string(ctx.Request().URI().QueryString()),
 		Body:    string(ctx.Body()),
-		Level:   "error",
+		Level:   getLevel(levelError),
 		Method:  ctx.Method(),
 	}
 	b, _ := json.Marshal(l)

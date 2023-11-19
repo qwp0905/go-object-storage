@@ -6,6 +6,7 @@ import (
 	"github.com/qwp0905/go-object-storage/api"
 	"github.com/qwp0905/go-object-storage/internal/http"
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
+	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -14,6 +15,7 @@ var (
 	redisHost string
 	redisDb   int
 	sec       int
+	logLevel  string
 )
 
 func main() {
@@ -21,8 +23,11 @@ func main() {
 	flag.IntVar(&redisDb, "db", 1, "redis db")
 	flag.IntVar(&sec, "interval", 30, "interval to check health")
 	flag.UintVar(&addr, "addr", 8080, "listen addr")
+	flag.StringVar(&logLevel, "log-level", "info", "log level")
 
 	flag.Parse()
+
+	logger.Config(logLevel)
 
 	rc := redis.NewClient(&redis.Options{Addr: redisHost, DB: redisDb})
 	manager := nodepool.NewPoolManager(rc)
