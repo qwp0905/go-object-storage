@@ -19,6 +19,7 @@ var (
 	levelInfo  = logLevel(1)
 	levelWarn  = logLevel(2)
 	levelError = logLevel(3)
+	none       = logLevel(99)
 
 	m = map[logLevel]string{
 		levelDebug: "debug",
@@ -40,6 +41,8 @@ func Config(level string) {
 		defaultLevel = levelWarn
 	case "error":
 		defaultLevel = levelError
+	case "none":
+		defaultLevel = none
 	default:
 		Warnf("unknown log level %s", level)
 	}
