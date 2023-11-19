@@ -44,7 +44,7 @@ func (n *nameNodeImpl) scan(
 	limit int,
 	id, current string,
 ) (list.Set[string], []*datanode.Metadata, error) {
-	prefixes := list.Set[string]{}
+	prefixes := make(list.Set[string])
 	list := make([]*datanode.Metadata, 0)
 	if limit <= 0 {
 		return prefixes, list, nil

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -61,6 +62,7 @@ type RWMutex interface {
 }
 
 type rwMutexImpl struct {
+	noCopy  nocopy.NoCopy
 	rc      *redis.Client
 	key     string
 	current string

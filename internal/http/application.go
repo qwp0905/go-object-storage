@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/api"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
+	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
 
 type Application interface {
@@ -16,6 +17,7 @@ type Application interface {
 }
 
 type applicationImpl struct {
+	nocopy nocopy.NoCopy
 	source *fiber.App
 }
 

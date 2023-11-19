@@ -4,9 +4,11 @@ import (
 	"sync"
 
 	"github.com/qwp0905/go-object-storage/pkg/list"
+	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
 
 type pageTable struct {
+	noCopy    nocopy.NoCopy
 	accessed  *list.DoubleLinked[string]
 	pages     map[string]*page
 	locker    *sync.RWMutex
