@@ -16,7 +16,7 @@ func (n *nameNodeImpl) get(ctx context.Context, key, id, current string) (*datan
 	if err := locker.RLock(ctx); err != nil {
 		return nil, err
 	}
-	defer locker.RUnlock(ctx)
+	defer locker.RUnlock(ctx) //TODO 다르게 처리해보자 지금은 그냥 중첩 락이야...
 
 	metadata, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
