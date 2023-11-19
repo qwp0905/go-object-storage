@@ -22,7 +22,7 @@ services:
     depends_on: ["redis"]
     build:
       context: .
-      dockerfile: deploy/poolmanager/Dockerfile
+      dockerfile: build/poolmanager/Dockerfile
     container_name: pool-manager
     command:
       - "--redis=redis:6379"
@@ -39,7 +39,7 @@ services:
     depends_on: ["redis"]
     build:
       context: .
-      dockerfile: deploy/namenode/Dockerfile
+      dockerfile: build/namenode/Dockerfile
     container_name: namenode-1
     command:
       - "--addr=8080"
@@ -60,7 +60,7 @@ services:
     depends_on: ["redis"]
     build:
       context: .
-      dockerfile: deploy/namenode/Dockerfile
+      dockerfile: build/namenode/Dockerfile
     container_name: namenode-2
     command:
       - "--addr=8080"
@@ -81,7 +81,7 @@ services:
     depends_on: ["namenode1"]
     build:
       context: .
-      dockerfile: deploy/datanode/Dockerfile
+      dockerfile: build/datanode/Dockerfile
     container_name: datanode-1
     command:
       - "--addr=8080"
@@ -109,7 +109,7 @@ services:
     depends_on: ["namenode1"]
     build:
       context: .
-      dockerfile: deploy/datanode/Dockerfile
+      dockerfile: build/datanode/Dockerfile
     container_name: datanode-2
     command:
       - "--addr=8080"
@@ -137,7 +137,7 @@ services:
     depends_on: ["namenode1"]
     build:
       context: .
-      dockerfile: deploy/datanode/Dockerfile
+      dockerfile: build/datanode/Dockerfile
     container_name: datanode-3
     command:
       - "--addr=8080"
