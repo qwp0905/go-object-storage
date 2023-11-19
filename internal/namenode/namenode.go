@@ -89,10 +89,6 @@ func (n *NameNodeImpl) ListObject(
 		return nil, err
 	}
 
-	prefixes := make([]string, 0)
-	for k := range p {
-		prefixes = append(prefixes, k)
-	}
 	list := make([]ObjectList, len(l))
 	for i, v := range l {
 		list[i] = ObjectList{
@@ -103,7 +99,7 @@ func (n *NameNodeImpl) ListObject(
 		}
 	}
 
-	return &ListObjectResult{Prefixes: prefixes, List: list}, nil
+	return &ListObjectResult{Prefixes: p.Values(), List: list}, nil
 }
 
 func (n *NameNodeImpl) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {

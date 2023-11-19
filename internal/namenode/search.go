@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/pkg/list"
 )
 
 func (n *NameNodeImpl) get(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
@@ -42,8 +43,8 @@ func (n *NameNodeImpl) scan(
 	prefix, delimiter, after string,
 	limit int,
 	id, current string,
-) (set, []*datanode.Metadata, error) {
-	prefixes := set{}
+) (list.Set[string], []*datanode.Metadata, error) {
+	prefixes := list.Set[string]{}
 	list := make([]*datanode.Metadata, 0)
 	if limit <= 0 {
 		return prefixes, list, nil
@@ -70,7 +71,7 @@ func (n *NameNodeImpl) scan(
 				list = append(list, metadata)
 			}
 			if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(metadata.Key) {
-				prefixes.add(matched + delimiter)
+				prefixes.Add(matched + delimiter)
 			}
 		}
 	}
@@ -84,7 +85,7 @@ func (n *NameNodeImpl) scan(
 		if err != nil {
 			return nil, nil, err
 		}
-		prefixes.union(s)
+		prefixes.Union(s)
 		for _, v := range l {
 			if len(list) == limit {
 				return prefixes, list, nil
@@ -94,16 +95,4 @@ func (n *NameNodeImpl) scan(
 	}
 
 	return prefixes, list, nil
-}
-
-type set map[string]struct{}
-
-func (s set) add(key string) {
-	s[key] = struct{}{}
-}
-
-func (s set) union(u set) {
-	for k := range u {
-		s.add(k)
-	}
 }
