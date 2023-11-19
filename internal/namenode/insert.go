@@ -31,17 +31,17 @@ func (n *NameNode) put(
 	r io.Reader,
 ) error {
 	locker := n.lockerPool.Get(current)
+	if err := locker.Lock(ctx); err != nil {
+		return err
+	}
+	defer locker.Unlock(ctx)
+
 	metadata, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
 		return err
 	}
 
 	if key == metadata.Key {
-		if err := locker.Lock(ctx); err != nil {
-			return err
-		}
-		defer locker.Unlock(ctx)
-
 		metadata.Size = uint(size)
 		metadata.LastModified = time.Now()
 		metadata.Type = contentType
@@ -75,11 +75,6 @@ func (n *NameNode) put(
 			return err
 		}
 
-		if err := locker.Lock(ctx); err != nil {
-			return err
-		}
-		defer locker.Unlock(ctx)
-
 		newMeta := &datanode.Metadata{Key: matched, NextNodes: []*datanode.NextRoute{next}}
 		if err := n.pool.PutMetadata(ctx, nodeId, newMeta); err != nil {
 			return err
@@ -92,11 +87,6 @@ func (n *NameNode) put(
 
 		return n.put(ctx, key, nodeId, matched, contentType, size, r)
 	}
-
-	if err := locker.Lock(ctx); err != nil {
-		return err
-	}
-	defer locker.Unlock(ctx)
 
 	dataId, err := n.pool.AcquireNode(ctx)
 	if err != nil {

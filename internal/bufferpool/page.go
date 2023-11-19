@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/qwp0905/go-object-storage/pkg/list"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 )
 
@@ -13,7 +14,7 @@ type page struct {
 	noCopy     nocopy.NoCopy
 	data       []byte
 	key        string
-	lastAccess *element
+	lastAccess *list.DoubleLinkedElement[string]
 	dirty      bool
 	locker     *sync.RWMutex
 }
@@ -23,7 +24,7 @@ func emptyPage(key string) *page {
 		key:        key,
 		locker:     new(sync.RWMutex),
 		dirty:      false,
-		lastAccess: &element{value: key},
+		lastAccess: list.NewDoubleLinkedListElement[string](key),
 	}
 }
 

@@ -9,17 +9,17 @@ import (
 
 func (n *NameNode) delete(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
 	locker := n.lockerPool.Get(current)
+	if err := locker.Lock(ctx); err != nil {
+		return nil, err
+	}
+	defer locker.Unlock(ctx)
+
 	metadata, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
 		return nil, err
 	}
 
 	if key == metadata.Key && metadata.FileExists() {
-		if err := locker.Lock(ctx); err != nil {
-			return nil, err
-		}
-		defer locker.Unlock(ctx)
-
 		if len(metadata.NextNodes) == 0 {
 			if err := n.pool.DeleteMetadata(ctx, id, key); err != nil {
 				return nil, err
@@ -49,11 +49,6 @@ func (n *NameNode) delete(ctx context.Context, key, id, current string) (*datano
 		}
 
 		if deleted == nil {
-			if err := locker.Lock(ctx); err != nil {
-				return nil, err
-			}
-			defer locker.Unlock(ctx)
-
 			if len(metadata.NextNodes) == 1 &&
 				!metadata.FileExists() &&
 				metadata.Key != n.pool.GetRootKey() {
@@ -73,10 +68,6 @@ func (n *NameNode) delete(ctx context.Context, key, id, current string) (*datano
 		}
 
 		if len(deleted.NextNodes) == 1 && !deleted.FileExists() {
-			if err := locker.Lock(ctx); err != nil {
-				return nil, err
-			}
-			defer locker.Unlock(ctx)
 			metadata.NextNodes[i] = deleted.NextNodes[0]
 			if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
 				return nil, err

@@ -53,22 +53,6 @@ func (p *NodePool) GetRootKey() string {
 	return p.rootKey
 }
 
-func (p *NodePool) GetRootMetadata(ctx context.Context) (*datanode.Metadata, error) {
-	if p.root != nil {
-		return p.GetMetadata(ctx, p.root.Id, p.rootKey)
-	}
-
-	if err := p.findRoot(ctx); err == nil {
-		return p.GetMetadata(ctx, p.root.Id, p.rootKey)
-	}
-
-	if err := p.createRoot(ctx); err != nil {
-		return nil, err
-	}
-
-	return p.GetMetadata(ctx, p.root.Id, p.rootKey)
-}
-
 func (p *NodePool) createRoot(ctx context.Context) error {
 	root, err := p.AcquireNode(ctx)
 	if err != nil {

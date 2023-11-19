@@ -17,10 +17,11 @@ func (n *NameNode) get(ctx context.Context, key, id, current string) (*datanode.
 	}
 	defer locker.RUnlock(ctx)
 
-	metadata, err := n.pool.GetMetadata(ctx, id, key)
+	metadata, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
 		return nil, err
 	}
+
 	if key == metadata.Key && metadata.FileExists() {
 		return metadata, nil
 	}
