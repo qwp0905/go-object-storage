@@ -79,10 +79,6 @@ func (p *bufferPoolImpl) Put(key string, size int, r io.Reader) error {
 		return nil
 	}
 
-	if _, ok := p.table.get(key); ok {
-		p.table.deallocate(key)
-	}
-
 	if err := p.acquire(size); err != nil {
 		return err
 	}
