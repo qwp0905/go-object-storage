@@ -25,7 +25,7 @@ func counter() func(int) int {
 	}
 }
 
-func (p *NodePoolImpl) PutDirect(ctx context.Context, metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error) {
+func (p *nodePoolImpl) PutDirect(ctx context.Context, metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error) {
 	host, err := p.GetNodeHost(ctx, metadata.NodeId)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (p *NodePoolImpl) PutDirect(ctx context.Context, metadata *datanode.Metadat
 	return data, nil
 }
 
-func (p *NodePoolImpl) GetDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error) {
+func (p *nodePoolImpl) GetDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error) {
 	host, err := p.GetNodeHost(ctx, metadata.NodeId)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (p *NodePoolImpl) GetDirect(ctx context.Context, metadata *datanode.Metadat
 	return res.BodyStream(), nil
 }
 
-func (p *NodePoolImpl) DeleteDirect(ctx context.Context, metadata *datanode.Metadata) error {
+func (p *nodePoolImpl) DeleteDirect(ctx context.Context, metadata *datanode.Metadata) error {
 	host, err := p.GetNodeHost(ctx, metadata.NodeId)
 	if err != nil {
 		return err

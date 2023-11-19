@@ -11,7 +11,7 @@ import (
 	"github.com/qwp0905/go-object-storage/pkg/list"
 )
 
-func (n *NameNodeImpl) get(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
+func (n *nameNodeImpl) get(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
 	locker := n.lockerPool.Get(current)
 	if err := locker.RLock(ctx); err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (n *NameNodeImpl) get(ctx context.Context, key, id, current string) (*datan
 }
 
 // TODO 개선 필요
-func (n *NameNodeImpl) scan(
+func (n *nameNodeImpl) scan(
 	ctx context.Context,
 	prefix, delimiter, after string,
 	limit int,

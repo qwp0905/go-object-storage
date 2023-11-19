@@ -25,7 +25,7 @@ type NodePool interface {
 	DeleteDirect(ctx context.Context, metadata *datanode.Metadata) error
 }
 
-type NodePoolImpl struct {
+type nodePoolImpl struct {
 	noCopy  nocopy.NoCopy
 	client  *fasthttp.Client
 	root    *NodeInfo
@@ -39,7 +39,7 @@ type NodeInfo struct {
 }
 
 func NewNodePool(rc *redis.Client) NodePool {
-	return &NodePoolImpl{
+	return &nodePoolImpl{
 		client:  &fasthttp.Client{MaxConnsPerHost: 1024},
 		rootKey: "/",
 		counter: counter(),
@@ -48,7 +48,7 @@ func NewNodePool(rc *redis.Client) NodePool {
 	}
 }
 
-func (p *NodePoolImpl) GetRootId(ctx context.Context) (string, error) {
+func (p *nodePoolImpl) GetRootId(ctx context.Context) (string, error) {
 	if p.root != nil {
 		return p.root.Id, nil
 	}
@@ -63,11 +63,11 @@ func (p *NodePoolImpl) GetRootId(ctx context.Context) (string, error) {
 
 	return p.root.Id, nil
 }
-func (p *NodePoolImpl) GetRootKey() string {
+func (p *nodePoolImpl) GetRootKey() string {
 	return p.rootKey
 }
 
-func (p *NodePoolImpl) createRoot(ctx context.Context) error {
+func (p *nodePoolImpl) createRoot(ctx context.Context) error {
 	root, err := p.AcquireNode(ctx)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (p *NodePoolImpl) createRoot(ctx context.Context) error {
 	return nil
 }
 
-func (p *NodePoolImpl) findRoot(ctx context.Context) error {
+func (p *nodePoolImpl) findRoot(ctx context.Context) error {
 	ids, err := p.rc.Keys(ctx, datanode.HostKey("*")).Result()
 	if err != nil {
 		return errors.WithStack(err)
@@ -105,7 +105,7 @@ func (p *NodePoolImpl) findRoot(ctx context.Context) error {
 	return errors.New("root node not found")
 }
 
-func (p *NodePoolImpl) GetNodeHost(ctx context.Context, id string) (string, error) {
+func (p *nodePoolImpl) GetNodeHost(ctx context.Context, id string) (string, error) {
 	host, err := p.rc.Get(ctx, datanode.HostKey(id)).Result()
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -114,7 +114,7 @@ func (p *NodePoolImpl) GetNodeHost(ctx context.Context, id string) (string, erro
 	return host, nil
 }
 
-func (p *NodePoolImpl) AcquireNode(ctx context.Context) (string, error) {
+func (p *nodePoolImpl) AcquireNode(ctx context.Context) (string, error) {
 	ids, err := p.rc.Keys(ctx, datanode.HostKey("*")).Result()
 	if err != nil {
 		return "", errors.WithStack(err)

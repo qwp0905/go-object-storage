@@ -24,7 +24,7 @@ func compare(a, b string) string {
 	return out
 }
 
-func (n *NameNodeImpl) put(
+func (n *nameNodeImpl) put(
 	ctx context.Context,
 	key, id, current, contentType string,
 	size int,

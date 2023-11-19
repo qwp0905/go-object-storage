@@ -21,20 +21,20 @@ type NameNode interface {
 	DeleteObject(ctx context.Context, key string) error
 }
 
-type NameNodeImpl struct {
+type nameNodeImpl struct {
 	pool       nodepool.NodePool
 	lockerPool locker.LockerPool
 }
 
-func New(pool nodepool.NodePool, rc *redis.Client) (*NameNodeImpl, error) {
+func New(pool nodepool.NodePool, rc *redis.Client) (*nameNodeImpl, error) {
 	lp, err := locker.NewPool(rc, time.Second*30)
 	if err != nil {
 		return nil, err
 	}
-	return &NameNodeImpl{pool: pool, lockerPool: lp}, nil
+	return &nameNodeImpl{pool: pool, lockerPool: lp}, nil
 }
 
-func (n *NameNodeImpl) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
+func (n *nameNodeImpl) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
 	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (n *NameNodeImpl) HeadObject(ctx context.Context, key string) (*datanode.Me
 	return metadata, nil
 }
 
-func (n *NameNodeImpl) GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error) {
+func (n *nameNodeImpl) GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error) {
 	metadata, err := n.HeadObject(ctx, key)
 	if err != nil {
 		return nil, nil, err
@@ -74,7 +74,7 @@ type ObjectList struct {
 	ContentType  string    `json:"content-type"`
 }
 
-func (n *NameNodeImpl) ListObject(
+func (n *nameNodeImpl) ListObject(
 	ctx context.Context,
 	prefix, delimiter, after string,
 	limit int,
@@ -102,7 +102,7 @@ func (n *NameNodeImpl) ListObject(
 	return &ListObjectResult{Prefixes: p.Values(), List: list}, nil
 }
 
-func (n *NameNodeImpl) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
+func (n *nameNodeImpl) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
 	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func (n *NameNodeImpl) PutObject(ctx context.Context, key, contentType string, s
 	return n.put(ctx, key, rootId, n.pool.GetRootKey(), contentType, size, r)
 }
 
-func (n *NameNodeImpl) DeleteObject(ctx context.Context, key string) error {
+func (n *nameNodeImpl) DeleteObject(ctx context.Context, key string) error {
 	metadata, err := n.HeadObject(ctx, key)
 	if err != nil {
 		if err == fiber.ErrNotFound {
