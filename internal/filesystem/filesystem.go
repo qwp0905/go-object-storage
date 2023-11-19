@@ -8,13 +8,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-type FileSystem struct{}
-
-func NewFileSystem() *FileSystem {
-	return &FileSystem{}
+type FileSystem interface {
+	ReadFile(key string) (*os.File, int, error)
+	WriteFile(key string, r io.Reader) (uint, error)
+	RemoveFile(key string) error
 }
 
-func (f *FileSystem) ReadFile(key string) (*os.File, int, error) {
+type FileSystemImpl struct{}
+
+func NewFileSystem() FileSystem {
+	return &FileSystemImpl{}
+}
+
+func (f *FileSystemImpl) ReadFile(key string) (*os.File, int, error) {
 	file, err := os.Open(key)
 	if os.IsNotExist(err) {
 		return nil, 0, errors.WithStack(fiber.ErrNotFound)
@@ -31,7 +37,7 @@ func (f *FileSystem) ReadFile(key string) (*os.File, int, error) {
 	return file, int(info.Size()), nil
 }
 
-func (f *FileSystem) WriteFile(key string, r io.Reader) (uint, error) {
+func (f *FileSystemImpl) WriteFile(key string, r io.Reader) (uint, error) {
 	file, err := os.Create(key)
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -46,7 +52,7 @@ func (f *FileSystem) WriteFile(key string, r io.Reader) (uint, error) {
 	return uint(n), nil
 }
 
-func (f *FileSystem) RemoveFile(key string) error {
+func (f *FileSystemImpl) RemoveFile(key string) error {
 	if err := os.Remove(key); err != nil && !os.IsNotExist(err) {
 		return errors.WithStack(err)
 	}

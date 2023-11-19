@@ -16,7 +16,7 @@ type controllerImpl struct {
 	router *fiber.App
 }
 
-func New(path string) *controllerImpl {
+func newController(path string) *controllerImpl {
 	return &controllerImpl{path: path, router: fiber.New()}
 }
 

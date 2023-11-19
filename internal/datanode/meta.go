@@ -28,7 +28,7 @@ func (m *Metadata) FileExists() bool {
 	return m.Source != "" && m.NodeId != ""
 }
 
-func (d *DataNode) GetMetadata(key string) (*Metadata, error) {
+func (d *dataNodeImpl) GetMetadata(key string) (*Metadata, error) {
 	r, err := d.bp.Get(d.getMetaKey(key))
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (d *DataNode) GetMetadata(key string) (*Metadata, error) {
 	return metadata, nil
 }
 
-func (d *DataNode) PutMetadata(metadata *Metadata) error {
+func (d *dataNodeImpl) PutMetadata(metadata *Metadata) error {
 	b, err := json.Marshal(metadata)
 	if err != nil {
 		return errors.WithStack(err)
@@ -54,6 +54,6 @@ func (d *DataNode) PutMetadata(metadata *Metadata) error {
 	return nil
 }
 
-func (d *DataNode) DeleteMetadata(key string) error {
+func (d *dataNodeImpl) DeleteMetadata(key string) error {
 	return d.bp.Delete(d.getMetaKey(key))
 }

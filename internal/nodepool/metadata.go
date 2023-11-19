@@ -11,7 +11,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func (p *NodePool) GetMetadata(ctx context.Context, id, key string) (*datanode.Metadata, error) {
+func (p *NodePoolImpl) GetMetadata(ctx context.Context, id, key string) (*datanode.Metadata, error) {
 	host, err := p.GetNodeHost(ctx, id)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (p *NodePool) GetMetadata(ctx context.Context, id, key string) (*datanode.M
 	return data, nil
 }
 
-func (p *NodePool) PutMetadata(ctx context.Context, id string, metadata *datanode.Metadata) error {
+func (p *NodePoolImpl) PutMetadata(ctx context.Context, id string, metadata *datanode.Metadata) error {
 	host, err := p.GetNodeHost(ctx, id)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (p *NodePool) PutMetadata(ctx context.Context, id string, metadata *datanod
 	return nil
 }
 
-func (p *NodePool) DeleteMetadata(ctx context.Context, id, key string) error {
+func (p *NodePoolImpl) DeleteMetadata(ctx context.Context, id, key string) error {
 	host, err := p.GetNodeHost(ctx, id)
 	if err != nil {
 		return err

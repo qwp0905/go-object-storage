@@ -7,7 +7,7 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
-func (n *NameNode) delete(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
+func (n *NameNodeImpl) delete(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
 	locker := n.lockerPool.Get(current)
 	if err := locker.Lock(ctx); err != nil {
 		return nil, err

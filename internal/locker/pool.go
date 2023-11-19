@@ -11,22 +11,26 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type LockerPool struct {
+type LockerPool interface {
+	Get(key string) RWMutex
+}
+
+type LockerPoolImpl struct {
 	noCopy   nocopy.NoCopy
 	rc       *redis.Client
 	timeout  time.Duration
-	lockers  map[string]*LockerPoolItem
+	lockers  map[string]*lockerPoolItem
 	accessed *list.DoubleLinked[string]
 	maxSize  int
 	m        *sync.Mutex
 }
 
-type LockerPoolItem struct {
-	locker     *RWMutex
+type lockerPoolItem struct {
+	locker     RWMutex
 	lastAccess *list.DoubleLinkedElement[string]
 }
 
-func NewPool(rc *redis.Client, timeout time.Duration) (*LockerPool, error) {
+func NewPool(rc *redis.Client, timeout time.Duration) (LockerPool, error) {
 	ctx := context.Background()
 	for _, s := range []*redis.Script{
 		readLockScript,
@@ -45,17 +49,17 @@ func NewPool(rc *redis.Client, timeout time.Duration) (*LockerPool, error) {
 			return nil, errors.WithStack(err)
 		}
 	}
-	return &LockerPool{
+	return &LockerPoolImpl{
 		rc:       rc,
 		timeout:  timeout,
-		lockers:  make(map[string]*LockerPoolItem),
+		lockers:  make(map[string]*lockerPoolItem),
 		accessed: list.NewDoubleLinkedList[string](),
 		maxSize:  500,
 		m:        new(sync.Mutex),
 	}, nil
 }
 
-func (p *LockerPool) Get(key string) *RWMutex {
+func (p *LockerPoolImpl) Get(key string) RWMutex {
 	p.m.Lock()
 	defer p.m.Unlock()
 
@@ -65,9 +69,9 @@ func (p *LockerPool) Get(key string) *RWMutex {
 		return item.locker
 	}
 
-	ni := &LockerPoolItem{
+	ni := &lockerPoolItem{
 		lastAccess: list.NewDoubleLinkedListElement[string](key),
-		locker:     &RWMutex{rc: p.rc, timeout: p.timeout, key: key},
+		locker:     &rwMutexImpl{rc: p.rc, timeout: p.timeout, key: key},
 	}
 
 	for len(p.lockers) >= p.maxSize {

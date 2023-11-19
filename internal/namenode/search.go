@@ -10,7 +10,7 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/datanode"
 )
 
-func (n *NameNode) get(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
+func (n *NameNodeImpl) get(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
 	locker := n.lockerPool.Get(current)
 	if err := locker.RLock(ctx); err != nil {
 		return nil, err
@@ -36,12 +36,19 @@ func (n *NameNode) get(ctx context.Context, key, id, current string) (*datanode.
 	return nil, fiber.ErrNotFound
 }
 
-func (n *NameNode) scan(
+// TODO 개선 필요
+func (n *NameNodeImpl) scan(
 	ctx context.Context,
 	prefix, delimiter, after string,
 	limit int,
 	id, current string,
 ) (set, []*datanode.Metadata, error) {
+	prefixes := set{}
+	list := make([]*datanode.Metadata, 0)
+	if limit <= 0 {
+		return prefixes, list, nil
+	}
+
 	locker := n.lockerPool.Get(current)
 	if err := locker.RLock(ctx); err != nil {
 		return nil, nil, err
@@ -53,8 +60,6 @@ func (n *NameNode) scan(
 		return nil, nil, err
 	}
 
-	prefixes := set{}
-	list := make([]*datanode.Metadata, 0)
 	rt := fmt.Sprintf("^%s", prefix)
 	if delimiter != "" {
 		rt += fmt.Sprintf("[^%s]*", delimiter)
@@ -75,7 +80,7 @@ func (n *NameNode) scan(
 			continue
 		}
 
-		s, l, err := n.scan(ctx, prefix, delimiter, after, limit, next.NodeId, next.Key)
+		s, l, err := n.scan(ctx, prefix, delimiter, after, limit-len(list), next.NodeId, next.Key)
 		if err != nil {
 			return nil, nil, err
 		}

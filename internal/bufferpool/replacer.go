@@ -1,14 +1,14 @@
 package bufferpool
 
-func (p *BufferPool) available() int {
+func (p *bufferPoolImpl) available() int {
 	return p.maxSize - p.table.allocated
 }
 
-func (p *BufferPool) isAvailable(size int) bool {
+func (p *bufferPoolImpl) isAvailable(size int) bool {
 	return p.maxSize/2 > size
 }
 
-func (p *BufferPool) victim(size int) error {
+func (p *bufferPoolImpl) victim(size int) error {
 	if size <= 0 {
 		return nil
 	}
@@ -25,6 +25,6 @@ func (p *BufferPool) victim(size int) error {
 	return p.victim(size - s)
 }
 
-func (p *BufferPool) acquire(size int) error {
+func (p *bufferPoolImpl) acquire(size int) error {
 	return p.victim(size - p.available())
 }

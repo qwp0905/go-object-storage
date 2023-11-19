@@ -10,11 +10,16 @@ import (
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 )
 
-type Application struct {
+type Application interface {
+	Mount(controllers ...api.Controller)
+	Listen(port uint) error
+}
+
+type applicationImpl struct {
 	source *fiber.App
 }
 
-func NewApplication() *Application {
+func NewApplication() Application {
 	source := fiber.New(fiber.Config{
 		StreamRequestBody: true,
 		JSONEncoder:       json.Marshal,
@@ -31,15 +36,15 @@ func NewApplication() *Application {
 		},
 	})
 
-	return &Application{source: source}
+	return &applicationImpl{source: source}
 }
 
-func (a *Application) Mount(controllers ...api.Controller) {
+func (a *applicationImpl) Mount(controllers ...api.Controller) {
 	for _, c := range controllers {
 		a.source.Mount(c.Path(), c.Router())
 	}
 }
 
-func (a *Application) Listen(port uint) error {
+func (a *applicationImpl) Listen(port uint) error {
 	return a.source.Listen(fmt.Sprintf(":%d", port))
 }

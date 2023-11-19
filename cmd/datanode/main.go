@@ -15,7 +15,7 @@ import (
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 )
 
-var app *http.Application
+var app http.Application
 
 var (
 	redisHost string
@@ -72,7 +72,7 @@ func main() {
 	<-done
 }
 
-func graceful(bp *bufferpool.BufferPool, sig chan os.Signal, done chan struct{}) {
+func graceful(bp bufferpool.BufferPool, sig chan os.Signal, done chan struct{}) {
 	<-sig
 	defer close(done)
 

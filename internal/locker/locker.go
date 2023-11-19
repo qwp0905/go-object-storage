@@ -53,14 +53,21 @@ end
 return redis.call("PUBLISH", KEYS[1], "")
 `)
 
-type RWMutex struct {
+type RWMutex interface {
+	RLock(ctx context.Context) error
+	RUnlock(ctx context.Context) error
+	Lock(ctx context.Context) error
+	Unlock(ctx context.Context) error
+}
+
+type rwMutexImpl struct {
 	rc      *redis.Client
 	key     string
 	current string
 	timeout time.Duration
 }
 
-func NewRWMutex(rc *redis.Client, key string, timeout time.Duration) (*RWMutex, error) {
+func NewRWMutex(rc *redis.Client, key string, timeout time.Duration) (RWMutex, error) {
 	ctx := context.Background()
 	for _, s := range []*redis.Script{
 		readLockScript,
@@ -79,10 +86,10 @@ func NewRWMutex(rc *redis.Client, key string, timeout time.Duration) (*RWMutex, 
 			return nil, errors.WithStack(err)
 		}
 	}
-	return &RWMutex{rc: rc, timeout: timeout, key: key}, nil
+	return &rwMutexImpl{rc: rc, timeout: timeout, key: key}, nil
 }
 
-func (l *RWMutex) RLock(ctx context.Context) error {
+func (l *rwMutexImpl) RLock(ctx context.Context) error {
 	sub := l.rc.Subscribe(ctx, l.key)
 	defer sub.Close()
 	for {
@@ -106,7 +113,7 @@ func (l *RWMutex) RLock(ctx context.Context) error {
 	}
 }
 
-func (l *RWMutex) RUnlock(ctx context.Context) error {
+func (l *rwMutexImpl) RUnlock(ctx context.Context) error {
 	return errors.WithStack(readUnlockScript.Run(
 		ctx,
 		l.rc,
@@ -118,7 +125,7 @@ func generate() string {
 	return uuid.Must(uuid.NewRandom()).String()
 }
 
-func (l *RWMutex) Lock(ctx context.Context) error {
+func (l *rwMutexImpl) Lock(ctx context.Context) error {
 	v := generate()
 	sub := l.rc.Subscribe(ctx, l.key)
 	defer sub.Close()
@@ -144,7 +151,7 @@ func (l *RWMutex) Lock(ctx context.Context) error {
 	}
 }
 
-func (l *RWMutex) Unlock(ctx context.Context) error {
+func (l *rwMutexImpl) Unlock(ctx context.Context) error {
 	return errors.WithStack(writeUnlockScript.Run(
 		ctx,
 		l.rc,

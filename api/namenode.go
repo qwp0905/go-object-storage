@@ -11,12 +11,12 @@ import (
 
 type nameNode struct {
 	*controllerImpl
-	svc *namenode.NameNode
+	svc namenode.NameNode
 }
 
-func NewNameNode(svc *namenode.NameNode) *nameNode {
+func NewNameNode(svc namenode.NameNode) Controller {
 	c := &nameNode{
-		controllerImpl: New("/api"),
+		controllerImpl: newController("/api"),
 		svc:            svc,
 	}
 

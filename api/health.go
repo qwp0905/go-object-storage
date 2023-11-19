@@ -2,9 +2,9 @@ package api
 
 import "github.com/gofiber/fiber/v2"
 
-func NewHealth() *health {
+func NewHealth() Controller {
 	controller := &health{
-		controllerImpl: New("/health"),
+		controllerImpl: newController("/health"),
 	}
 
 	controller.router.Get("/", controller.check)

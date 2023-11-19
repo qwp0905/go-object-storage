@@ -7,12 +7,12 @@ import (
 
 type data struct {
 	*controllerImpl
-	svc *datanode.DataNode
+	svc datanode.DataNode
 }
 
-func NewData(svc *datanode.DataNode) *data {
+func NewData(svc datanode.DataNode) Controller {
 	c := &data{
-		controllerImpl: New("/data"),
+		controllerImpl: newController("/data"),
 		svc:            svc,
 	}
 

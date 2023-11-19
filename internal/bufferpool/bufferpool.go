@@ -17,16 +17,23 @@ const (
 	PB = TB * (1 << 10)
 )
 
-type BufferPool struct {
+type BufferPool interface {
+	Get(key string) (io.Reader, error)
+	Put(key string, size int, r io.Reader) error
+	Delete(key string) error
+	FlushAll() error
+}
+
+type bufferPoolImpl struct {
 	noCopy  nocopy.NoCopy
-	fs      *filesystem.FileSystem
+	fs      filesystem.FileSystem
 	maxSize int
 	table   *pageTable
 	retry   int
 }
 
-func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
-	return &BufferPool{
+func NewBufferPool(maxSize int, fs filesystem.FileSystem) BufferPool {
+	return &bufferPoolImpl{
 		fs:      fs,
 		maxSize: maxSize,
 		table:   newPageTable(),
@@ -34,7 +41,7 @@ func NewBufferPool(maxSize int, fs *filesystem.FileSystem) *BufferPool {
 	}
 }
 
-func (p *BufferPool) Get(key string) (io.Reader, error) {
+func (p *bufferPoolImpl) Get(key string) (io.Reader, error) {
 	page, ok := p.table.get(key)
 	if ok {
 		return page.getData(), nil
@@ -63,7 +70,7 @@ func (p *BufferPool) Get(key string) (io.Reader, error) {
 	return page.getData(), nil
 }
 
-func (p *BufferPool) Put(key string, size int, r io.Reader) error {
+func (p *bufferPoolImpl) Put(key string, size int, r io.Reader) error {
 	if !p.isAvailable(size) {
 		if _, err := p.fs.WriteFile(key, r); err != nil {
 			return err
@@ -91,12 +98,12 @@ func (p *BufferPool) Put(key string, size int, r io.Reader) error {
 	return nil
 }
 
-func (p *BufferPool) Delete(key string) error {
+func (p *bufferPoolImpl) Delete(key string) error {
 	defer p.table.deallocate(key)
 	return p.fs.RemoveFile(key)
 }
 
-func (p *BufferPool) FlushAll() error {
+func (p *bufferPoolImpl) FlushAll() error {
 	for _, page := range p.table.toList() {
 		if !page.isDirty() {
 			continue
@@ -109,7 +116,7 @@ func (p *BufferPool) FlushAll() error {
 	return nil
 }
 
-func (p *BufferPool) lazyWrite(pg *page) {
+func (p *bufferPoolImpl) lazyWrite(pg *page) {
 	for i := 0; i < p.retry; i++ {
 		if _, err := p.fs.WriteFile(pg.key, pg.getData()); err == nil {
 			pg.clearDirty()

@@ -13,20 +13,28 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type NameNode struct {
-	pool       *nodepool.NodePool
-	lockerPool *locker.LockerPool
+type NameNode interface {
+	HeadObject(ctx context.Context, key string) (*datanode.Metadata, error)
+	GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error)
+	ListObject(ctx context.Context, prefix, delimiter, after string, limit int) (*ListObjectResult, error)
+	PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error
+	DeleteObject(ctx context.Context, key string) error
 }
 
-func New(pool *nodepool.NodePool, rc *redis.Client) (*NameNode, error) {
+type NameNodeImpl struct {
+	pool       nodepool.NodePool
+	lockerPool locker.LockerPool
+}
+
+func New(pool nodepool.NodePool, rc *redis.Client) (*NameNodeImpl, error) {
 	lp, err := locker.NewPool(rc, time.Second*30)
 	if err != nil {
 		return nil, err
 	}
-	return &NameNode{pool: pool, lockerPool: lp}, nil
+	return &NameNodeImpl{pool: pool, lockerPool: lp}, nil
 }
 
-func (n *NameNode) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
+func (n *NameNodeImpl) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
 	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return nil, err
@@ -40,7 +48,7 @@ func (n *NameNode) HeadObject(ctx context.Context, key string) (*datanode.Metada
 	return metadata, nil
 }
 
-func (n *NameNode) GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error) {
+func (n *NameNodeImpl) GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error) {
 	metadata, err := n.HeadObject(ctx, key)
 	if err != nil {
 		return nil, nil, err
@@ -66,7 +74,7 @@ type ObjectList struct {
 	ContentType  string    `json:"content-type"`
 }
 
-func (n *NameNode) ListObject(
+func (n *NameNodeImpl) ListObject(
 	ctx context.Context,
 	prefix, delimiter, after string,
 	limit int,
@@ -98,7 +106,7 @@ func (n *NameNode) ListObject(
 	return &ListObjectResult{Prefixes: prefixes, List: list}, nil
 }
 
-func (n *NameNode) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
+func (n *NameNodeImpl) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
 	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return err
@@ -107,7 +115,7 @@ func (n *NameNode) PutObject(ctx context.Context, key, contentType string, size 
 	return n.put(ctx, key, rootId, n.pool.GetRootKey(), contentType, size, r)
 }
 
-func (n *NameNode) DeleteObject(ctx context.Context, key string) error {
+func (n *NameNodeImpl) DeleteObject(ctx context.Context, key string) error {
 	metadata, err := n.HeadObject(ctx, key)
 	if err != nil {
 		if err == fiber.ErrNotFound {

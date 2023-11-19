@@ -11,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var app *http.Application
+var app http.Application
 
 var (
 	addr      uint

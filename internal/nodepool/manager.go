@@ -13,17 +13,21 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type PoolManager struct {
+type PoolManager interface {
+	Start(sec int)
+}
+
+type PoolManagerImpl struct {
 	noCopy nocopy.NoCopy
 	rc     *redis.Client
 	http   *fasthttp.Client
 }
 
-func NewPoolManager(rc *redis.Client) *PoolManager {
-	return &PoolManager{rc: rc, http: &fasthttp.Client{}}
+func NewPoolManager(rc *redis.Client) PoolManager {
+	return &PoolManagerImpl{rc: rc, http: &fasthttp.Client{}}
 }
 
-func (m *PoolManager) Start(sec int) {
+func (m *PoolManagerImpl) Start(sec int) {
 	ctx := context.Background()
 	timer := time.NewTicker(time.Second * time.Duration(sec))
 	for range timer.C {
@@ -45,7 +49,7 @@ func (m *PoolManager) Start(sec int) {
 	}
 }
 
-func (m *PoolManager) getAllNodes(ctx context.Context) ([]string, error) {
+func (m *PoolManagerImpl) getAllNodes(ctx context.Context) ([]string, error) {
 	keys, err := m.rc.Keys(ctx, datanode.HostKey("*")).Result()
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -59,11 +63,11 @@ func (m *PoolManager) getAllNodes(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-func (n *PoolManager) setNodeDown(ctx context.Context, id string) error {
+func (n *PoolManagerImpl) setNodeDown(ctx context.Context, id string) error {
 	return errors.WithStack(n.rc.Del(ctx, datanode.HostKey(id)).Err())
 }
 
-func (n *PoolManager) healthCheck(ctx context.Context, id string) error {
+func (n *PoolManagerImpl) healthCheck(ctx context.Context, id string) error {
 	host, err := n.rc.Get(ctx, datanode.HostKey(id)).Result()
 	if err != nil {
 		return errors.WithStack(err)

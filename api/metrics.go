@@ -9,9 +9,9 @@ type metrics struct {
 	*controllerImpl
 }
 
-func NewMetrics() *metrics {
+func NewMetrics() Controller {
 	c := &metrics{
-		controllerImpl: New("/metrics"),
+		controllerImpl: newController("/metrics"),
 	}
 
 	c.router.Use(adaptor.HTTPHandler(promhttp.Handler()))

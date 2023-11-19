@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -25,9 +26,19 @@ func IdFromKey(key string) string {
 	return strings.TrimPrefix(key, "HOST:")
 }
 
-type DataNode struct {
+type DataNode interface {
+	GetMetadata(key string) (*Metadata, error)
+	PutMetadata(metadata *Metadata) error
+	DeleteMetadata(key string) error
+	GetObject(ctx context.Context, key string) (io.Reader, error)
+	PutObject(key string, size int, r io.Reader) (*Metadata, error)
+	DeleteObject(key string) error
+	Live()
+}
+
+type dataNodeImpl struct {
 	noCopy nocopy.NoCopy
-	bp     *bufferpool.BufferPool
+	bp     bufferpool.BufferPool
 	config *Config
 	rc     *redis.Client
 	id     string
@@ -40,7 +51,7 @@ type Config struct {
 	RedisDB   int
 }
 
-func NewDataNode(cfg *Config, bp *bufferpool.BufferPool) (*DataNode, error) {
+func NewDataNode(cfg *Config, bp bufferpool.BufferPool) (DataNode, error) {
 	id, err := ensureId(cfg.BaseDir)
 	if err != nil {
 		return nil, err
@@ -50,7 +61,7 @@ func NewDataNode(cfg *Config, bp *bufferpool.BufferPool) (*DataNode, error) {
 		return nil, err
 	}
 
-	return &DataNode{
+	return &dataNodeImpl{
 		bp:     bp,
 		config: cfg,
 		rc:     redis.NewClient(&redis.Options{Addr: cfg.RedisHost, DB: cfg.RedisDB}),
@@ -58,7 +69,7 @@ func NewDataNode(cfg *Config, bp *bufferpool.BufferPool) (*DataNode, error) {
 	}, nil
 }
 
-func (d *DataNode) getMetaKey(key string) string {
+func (d *dataNodeImpl) getMetaKey(key string) string {
 	return fmt.Sprintf(
 		"%s/meta/%s",
 		d.config.BaseDir,
@@ -66,7 +77,7 @@ func (d *DataNode) getMetaKey(key string) string {
 	)
 }
 
-func (d *DataNode) getDataKey(key string) string {
+func (d *dataNodeImpl) getDataKey(key string) string {
 	return fmt.Sprintf("%s/object/%s", d.config.BaseDir, key)
 }
 
@@ -110,7 +121,7 @@ func ensureId(base string) (string, error) {
 	return id, nil
 }
 
-func (n *DataNode) Live() {
+func (n *dataNodeImpl) Live() {
 	if err := n.register(); err != nil {
 		logger.Warnf("%+v", errors.WithStack(err))
 	}
@@ -121,7 +132,7 @@ func (n *DataNode) Live() {
 	}
 }
 
-func (n *DataNode) register() error {
+func (n *dataNodeImpl) register() error {
 	return errors.WithStack(n.rc.SetEx(
 		context.Background(),
 		HostKey(n.id),

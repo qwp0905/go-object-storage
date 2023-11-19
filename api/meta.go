@@ -8,12 +8,12 @@ import (
 
 type meta struct {
 	*controllerImpl
-	svc *datanode.DataNode
+	svc datanode.DataNode
 }
 
-func NewMeta(svc *datanode.DataNode) *meta {
+func NewMeta(svc datanode.DataNode) Controller {
 	c := &meta{
-		controllerImpl: New("/meta"),
+		controllerImpl: newController("/meta"),
 		svc:            svc,
 	}
 
