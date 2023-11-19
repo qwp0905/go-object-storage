@@ -53,7 +53,7 @@ func NewPool(rc *redis.Client, timeout time.Duration) (LockerPool, error) {
 		rc:       rc,
 		timeout:  timeout,
 		lockers:  make(map[string]*lockerPoolItem),
-		accessed: list.NewDoubleLinkedList[string](),
+		accessed: list.NewDoubleLinked[string](),
 		maxSize:  500,
 		m:        new(sync.Mutex),
 	}, nil
@@ -70,7 +70,7 @@ func (p *LockerPoolImpl) Get(key string) RWMutex {
 	}
 
 	ni := &lockerPoolItem{
-		lastAccess: list.NewDoubleLinkedListElement[string](key),
+		lastAccess: list.NewDoubleLinkedElement[string](key),
 		locker:     &rwMutexImpl{rc: p.rc, timeout: p.timeout, key: key},
 	}
 

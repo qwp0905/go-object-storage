@@ -18,7 +18,7 @@ func (e *DoubleLinkedElement[T]) GetPrev() *DoubleLinkedElement[T] {
 	return nil
 }
 
-func NewDoubleLinkedList[T comparable]() *DoubleLinked[T] {
+func NewDoubleLinked[T comparable]() *DoubleLinked[T] {
 	l := &DoubleLinked[T]{len: 0}
 	l.root.next = &l.root
 	l.root.prev = &l.root
@@ -26,7 +26,7 @@ func NewDoubleLinkedList[T comparable]() *DoubleLinked[T] {
 	return l
 }
 
-func NewDoubleLinkedListElement[T comparable](v T) *DoubleLinkedElement[T] {
+func NewDoubleLinkedElement[T comparable](v T) *DoubleLinkedElement[T] {
 	return &DoubleLinkedElement[T]{Value: v}
 }
 

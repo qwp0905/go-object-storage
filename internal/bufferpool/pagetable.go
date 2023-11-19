@@ -15,7 +15,7 @@ type pageTable struct {
 
 func newPageTable() *pageTable {
 	return &pageTable{
-		accessed:  list.NewDoubleLinkedList[string](),
+		accessed:  list.NewDoubleLinked[string](),
 		pages:     make(map[string]*page),
 		locker:    new(sync.RWMutex),
 		allocated: 0,

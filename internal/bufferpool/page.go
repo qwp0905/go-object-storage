@@ -24,7 +24,7 @@ func emptyPage(key string) *page {
 		key:        key,
 		locker:     new(sync.RWMutex),
 		dirty:      false,
-		lastAccess: list.NewDoubleLinkedListElement[string](key),
+		lastAccess: list.NewDoubleLinkedElement[string](key),
 	}
 }
 
