@@ -79,16 +79,15 @@ func (p *bufferPoolImpl) Put(key string, size int, r io.Reader) error {
 		return nil
 	}
 
-	page, ok := p.table.get(key)
-	if ok {
-		size -= page.getSize()
+	if _, ok := p.table.get(key); ok {
+		p.table.deallocate(key)
 	}
 
 	if err := p.acquire(size); err != nil {
 		return err
 	}
 
-	page = emptyPage(key)
+	page := emptyPage(key)
 	page.setDirty()
 	if err := page.putData(r); err != nil {
 		return err
