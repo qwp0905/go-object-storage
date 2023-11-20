@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/bufferpool"
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/redis/go-redis/v9"
@@ -27,11 +28,11 @@ func IdFromKey(key string) string {
 }
 
 type DataNode interface {
-	GetMetadata(key string) (*Metadata, error)
-	PutMetadata(metadata *Metadata) error
+	GetMetadata(key string) (*metadata.Metadata, error)
+	PutMetadata(metadata *metadata.Metadata) error
 	DeleteMetadata(key string) error
 	GetObject(ctx context.Context, key string) (io.Reader, error)
-	PutObject(key string, size int, r io.Reader) (*Metadata, error)
+	PutObject(key string, size int, r io.Reader) error
 	DeleteObject(key string) error
 	Live()
 }

@@ -1,13 +1,11 @@
 package nodepool
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"sync/atomic"
 
-	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/metadata"
@@ -25,10 +23,10 @@ func counter() func(int) int {
 	}
 }
 
-func (p *nodePoolImpl) PutDirect(ctx context.Context, meta *metadata.Metadata, r io.Reader) (*metadata.Metadata, error) {
+func (p *nodePoolImpl) PutDirect(ctx context.Context, meta *metadata.Metadata, r io.Reader) error {
 	host, err := p.GetNodeHost(ctx, meta.NodeId)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
@@ -40,21 +38,16 @@ func (p *nodePoolImpl) PutDirect(ctx context.Context, meta *metadata.Metadata, r
 	req.SetBodyStream(r, int(meta.Size))
 
 	if err := p.client.Do(req, res); err != nil {
-		return nil, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 
 	if res.StatusCode() == fiber.StatusNotFound {
-		return nil, fiber.ErrNotFound
+		return fiber.ErrNotFound
 	} else if res.StatusCode() >= 400 {
-		return nil, errors.WithStack(errors.Errorf("%s", string(res.Body())))
+		return errors.WithStack(errors.Errorf("%s", string(res.Body())))
 	}
 
-	data := new(metadata.Metadata)
-	if err := json.NewDecoder(bytes.NewReader(res.Body())).Decode(data); err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	return data, nil
+	return nil
 }
 
 func (p *nodePoolImpl) GetDirect(ctx context.Context, metadata *metadata.Metadata) (io.Reader, error) {

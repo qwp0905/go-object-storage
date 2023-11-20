@@ -39,12 +39,11 @@ func (c *data) put(ctx *fiber.Ctx) error {
 	}
 	defer ctx.Request().CloseBodyStream()
 
-	out, err := c.svc.PutObject(ctx.Params("key"), ctx.Request().Header.ContentLength(), body)
-	if err != nil {
+	if err := c.svc.PutObject(ctx.Params("key"), ctx.Request().Header.ContentLength(), body); err != nil {
 		return err
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(out)
+	return ctx.Status(fiber.StatusOK).SendString("OK")
 }
 
 func (c *data) delete(ctx *fiber.Ctx) error {

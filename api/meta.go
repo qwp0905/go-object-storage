@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 )
 
 type meta struct {
@@ -34,7 +35,7 @@ func (c *meta) get(ctx *fiber.Ctx) error {
 }
 
 func (c *meta) put(ctx *fiber.Ctx) error {
-	body := new(datanode.Metadata)
+	body := new(metadata.Metadata)
 	if err := ctx.BodyParser(body); err != nil {
 		return errors.WithStack(err)
 	}

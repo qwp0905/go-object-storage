@@ -21,7 +21,7 @@ type NodePool interface {
 	GetMetadata(ctx context.Context, id, key string) (*metadata.Metadata, error)
 	PutMetadata(ctx context.Context, id string, metadata *metadata.Metadata) error
 	DeleteMetadata(ctx context.Context, id, key string) error
-	PutDirect(ctx context.Context, metadata *metadata.Metadata, r io.Reader) (*metadata.Metadata, error)
+	PutDirect(ctx context.Context, metadata *metadata.Metadata, r io.Reader) error
 	GetDirect(ctx context.Context, metadata *metadata.Metadata) (io.Reader, error)
 	DeleteDirect(ctx context.Context, metadata *metadata.Metadata) error
 }

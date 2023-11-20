@@ -3,6 +3,8 @@ package metadata
 import (
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Metadata struct {
@@ -15,6 +17,10 @@ type Metadata struct {
 	NextNodes    []*NextRoute `json:"next_nodes"`
 }
 
+func New(key string) *Metadata {
+	return &Metadata{Key: key, NextNodes: make([]*NextRoute, 0)}
+}
+
 type NextRoute struct {
 	NodeId string `json:"node_id"`
 	Key    string `json:"key"`
@@ -24,24 +30,43 @@ func (m *Metadata) FileExists() bool {
 	return m.Source != "" && m.NodeId != ""
 }
 
-func (m *Metadata) FindKey(key string) *NextRoute {
-	for _, next := range m.NextNodes {
-		if strings.HasPrefix(key, next.Key) {
-			return next
+func (m *Metadata) FindPrefix(key string) int {
+	for i := range m.NextNodes {
+		if strings.HasPrefix(key, m.NextNodes[i].Key) {
+			return i
 		}
 	}
-	return nil
+	return -1
 }
 
-func (m *Metadata) FindMatched(key string) (string, *NextRoute) {
-	for _, next := range m.NextNodes {
-		matched := compare(next.Key, key)
+func (m *Metadata) FindMatched(key string) (int, string) {
+	for i := range m.NextNodes {
+		matched := compare(m.NextNodes[i].Key, key)
 		if len(matched) > len(m.Key) {
-			return matched, next
+			return i, matched
 		}
 	}
 
-	return "", nil
+	return -1, ""
+}
+
+func (m *Metadata) GetNext(index int) *NextRoute {
+	return m.NextNodes[index]
+}
+
+func (m *Metadata) UpdateAttr(size int, contentType string) {
+	m.Size = uint(size)
+	m.Type = contentType
+	m.LastModified = time.Now()
+}
+
+func (m *Metadata) SetNew(nodeId string) {
+	m.Source = uuid.Must(uuid.NewRandom()).String()
+	m.NodeId = nodeId
+}
+
+func (m *Metadata) Clear() {
+	*m = Metadata{Key: m.Key, NextNodes: m.NextNodes}
 }
 
 func (m *Metadata) InsertNext(id, key string) {
@@ -55,6 +80,14 @@ func (m *Metadata) InsertNext(id, key string) {
 	m.NextNodes = append(m.NextNodes, &NextRoute{})
 	copy(m.NextNodes[index+1:], m.NextNodes[index:])
 	m.NextNodes[index] = &NextRoute{NodeId: id, Key: key}
+}
+
+func (m *Metadata) RemoveNext(index int) {
+	m.NextNodes = append(m.NextNodes[:index], m.NextNodes[index+1:]...)
+}
+
+func (m *Metadata) Len() int {
+	return len(m.NextNodes)
 }
 
 func compare(a, b string) string {

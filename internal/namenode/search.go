@@ -16,7 +16,6 @@ func (n *nameNodeImpl) get(ctx context.Context, key, id, current string) (*metad
 	if err := locker.RLock(ctx); err != nil {
 		return nil, err
 	}
-	// defer locker.RUnlock(ctx) //TODO 다르게 처리해보자 지금은 그냥 중첩 락이야...
 
 	currentMeta, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
@@ -29,7 +28,8 @@ func (n *nameNodeImpl) get(ctx context.Context, key, id, current string) (*metad
 		return currentMeta, nil
 	}
 
-	if next := currentMeta.FindKey(key); next != nil {
+	if index := currentMeta.FindPrefix(key); index != -1 {
+		next := currentMeta.GetNext(index)
 		if err := locker.RUnlock(ctx); err != nil {
 			return nil, err
 		}
@@ -67,21 +67,25 @@ func (n *nameNodeImpl) scan(
 
 	rt := fmt.Sprintf("^%s", prefix)
 	if delimiter != "" {
-		rt += fmt.Sprintf("[^%s]*", delimiter)
+		rt += fmt.Sprintf("[^%s]*(%s)?", delimiter, delimiter)
 	}
-	if currentMeta.Key > after {
-		if matched := regexp.MustCompile(rt).FindString(currentMeta.Key); matched != "" {
-			if currentMeta.FileExists() && (delimiter == "" || matched == currentMeta.Key) {
-				list = append(list, currentMeta)
-			}
-			if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(currentMeta.Key) {
-				prefixes.Add(matched + delimiter)
-			}
+	if matched := regexp.MustCompile(rt).FindString(currentMeta.Key); matched != "" {
+		if currentMeta.FileExists() && matched == currentMeta.Key && after < currentMeta.Key {
+			list = append(list, currentMeta)
+		}
+
+		if delimiter != "" && strings.HasSuffix(matched, delimiter) {
+			prefixes.Add(matched)
+			return prefixes, list, nil
 		}
 	}
 
 	for _, next := range currentMeta.NextNodes {
-		if !(strings.HasPrefix(prefix, next.Key) || strings.HasPrefix(next.Key, prefix)) {
+		if strings.HasPrefix(prefix, next.Key) {
+			return n.scan(ctx, prefix, delimiter, after, limit, next.NodeId, next.Key)
+		}
+
+		if !(strings.HasPrefix(next.Key, prefix)) && after > next.Key && !strings.HasPrefix(after, next.Key) {
 			continue
 		}
 

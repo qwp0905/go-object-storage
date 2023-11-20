@@ -35,14 +35,19 @@ func Config(level string) {
 	switch level {
 	case "debug":
 		defaultLevel = levelDebug
+		return
 	case "info":
 		defaultLevel = levelInfo
+		return
 	case "warn":
 		defaultLevel = levelWarn
+		return
 	case "error":
 		defaultLevel = levelError
+		return
 	case "none":
 		defaultLevel = none
+		return
 	default:
 		Warnf("unknown log level %s", level)
 	}

@@ -3,37 +3,17 @@ package datanode
 import (
 	"bytes"
 
-	"time"
-
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 )
 
-type Metadata struct {
-	Key          string       `json:"key"`
-	Source       string       `json:"source,omitempty"`
-	Size         uint         `json:"size,omitempty"`
-	Type         string       `json:"type,omitempty"`
-	NodeId       string       `json:"node_id,omitempty"`
-	LastModified time.Time    `json:"last_modified,omitempty"`
-	NextNodes    []*NextRoute `json:"next_nodes"`
-}
-
-type NextRoute struct {
-	NodeId string `json:"node_id"`
-	Key    string `json:"key"`
-}
-
-func (m *Metadata) FileExists() bool {
-	return m.Source != "" && m.NodeId != ""
-}
-
-func (d *dataNodeImpl) GetMetadata(key string) (*Metadata, error) {
+func (d *dataNodeImpl) GetMetadata(key string) (*metadata.Metadata, error) {
 	r, err := d.bp.Get(d.getMetaKey(key))
 	if err != nil {
 		return nil, err
 	}
-	metadata := new(Metadata)
+	metadata := new(metadata.Metadata)
 	if err := json.NewDecoder(r).Decode(metadata); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -41,7 +21,7 @@ func (d *dataNodeImpl) GetMetadata(key string) (*Metadata, error) {
 	return metadata, nil
 }
 
-func (d *dataNodeImpl) PutMetadata(metadata *Metadata) error {
+func (d *dataNodeImpl) PutMetadata(metadata *metadata.Metadata) error {
 	b, err := json.Marshal(metadata)
 	if err != nil {
 		return errors.WithStack(err)

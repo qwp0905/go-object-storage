@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/qwp0905/go-object-storage/internal/locker"
 	"github.com/qwp0905/go-object-storage/internal/metadata"
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
@@ -130,9 +129,4 @@ func (n *nameNodeImpl) DeleteObject(ctx context.Context, key string) error {
 	}
 
 	return n.pool.DeleteDirect(ctx, metadata)
-}
-
-func generateKey() string {
-	id, _ := uuid.NewRandom()
-	return id.String()
 }
