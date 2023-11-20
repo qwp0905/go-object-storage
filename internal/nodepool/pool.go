@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
 	"github.com/qwp0905/go-object-storage/pkg/nocopy"
 	"github.com/redis/go-redis/v9"
@@ -17,12 +18,12 @@ type NodePool interface {
 	GetRootKey() string
 	GetNodeHost(ctx context.Context, id string) (string, error)
 	AcquireNode(ctx context.Context) (string, error)
-	GetMetadata(ctx context.Context, id, key string) (*datanode.Metadata, error)
-	PutMetadata(ctx context.Context, id string, metadata *datanode.Metadata) error
+	GetMetadata(ctx context.Context, id, key string) (*metadata.Metadata, error)
+	PutMetadata(ctx context.Context, id string, metadata *metadata.Metadata) error
 	DeleteMetadata(ctx context.Context, id, key string) error
-	PutDirect(ctx context.Context, metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error)
-	GetDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error)
-	DeleteDirect(ctx context.Context, metadata *datanode.Metadata) error
+	PutDirect(ctx context.Context, metadata *metadata.Metadata, r io.Reader) (*metadata.Metadata, error)
+	GetDirect(ctx context.Context, metadata *metadata.Metadata) (io.Reader, error)
+	DeleteDirect(ctx context.Context, metadata *metadata.Metadata) error
 }
 
 type nodePoolImpl struct {
@@ -73,9 +74,9 @@ func (p *nodePoolImpl) createRoot(ctx context.Context) error {
 		return err
 	}
 
-	rootMeta := &datanode.Metadata{
+	rootMeta := &metadata.Metadata{
 		Key:       p.rootKey,
-		NextNodes: []*datanode.NextRoute{},
+		NextNodes: []*metadata.NextRoute{},
 	}
 	if err := p.PutMetadata(ctx, root, rootMeta); err != nil {
 		return err

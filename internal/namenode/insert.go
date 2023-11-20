@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 )
 
 func compare(a, b string) string {
@@ -36,34 +36,34 @@ func (n *nameNodeImpl) put(
 	}
 	defer locker.Unlock(ctx)
 
-	metadata, err := n.pool.GetMetadata(ctx, id, current)
+	currentMeta, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
 		return err
 	}
 
-	if key == metadata.Key {
-		metadata.Size = uint(size)
-		metadata.LastModified = time.Now()
-		metadata.Type = contentType
-		if !metadata.FileExists() {
+	if key == currentMeta.Key {
+		currentMeta.Size = uint(size)
+		currentMeta.LastModified = time.Now()
+		currentMeta.Type = contentType
+		if !currentMeta.FileExists() {
 			nodeId, err := n.pool.AcquireNode(ctx)
 			if err != nil {
 				return err
 			}
-			metadata.NodeId = nodeId
-			metadata.Source = generateKey()
+			currentMeta.NodeId = nodeId
+			currentMeta.Source = generateKey()
 		}
 
-		if _, err := n.pool.PutDirect(ctx, metadata, r); err != nil {
+		if _, err := n.pool.PutDirect(ctx, currentMeta, r); err != nil {
 			return err
 		}
 
-		return n.pool.PutMetadata(ctx, id, metadata)
+		return n.pool.PutMetadata(ctx, id, currentMeta)
 	}
 
-	for i, next := range metadata.NextNodes {
+	for i, next := range currentMeta.NextNodes {
 		matched := compare(next.Key, key)
-		if len(matched) <= len(metadata.Key) {
+		if len(matched) <= len(currentMeta.Key) {
 			continue
 		}
 		if matched == next.Key {
@@ -75,13 +75,13 @@ func (n *nameNodeImpl) put(
 			return err
 		}
 
-		newMeta := &datanode.Metadata{Key: matched, NextNodes: []*datanode.NextRoute{next}}
+		newMeta := &metadata.Metadata{Key: matched, NextNodes: []*metadata.NextRoute{next}}
 		if err := n.pool.PutMetadata(ctx, nodeId, newMeta); err != nil {
 			return err
 		}
 
-		metadata.NextNodes[i] = &datanode.NextRoute{NodeId: nodeId, Key: matched}
-		if err := n.pool.PutMetadata(ctx, id, metadata); err != nil {
+		currentMeta.NextNodes[i] = &metadata.NextRoute{NodeId: nodeId, Key: matched}
+		if err := n.pool.PutMetadata(ctx, id, currentMeta); err != nil {
 			return err
 		}
 
@@ -92,14 +92,14 @@ func (n *nameNodeImpl) put(
 	if err != nil {
 		return err
 	}
-	newMeta := &datanode.Metadata{
+	newMeta := &metadata.Metadata{
 		NodeId:       dataId,
 		Key:          key,
 		Source:       generateKey(),
 		LastModified: time.Now(),
 		Type:         contentType,
 		Size:         uint(size),
-		NextNodes:    make([]*datanode.NextRoute, 0),
+		NextNodes:    make([]*metadata.NextRoute, 0),
 	}
 	if _, err := n.pool.PutDirect(ctx, newMeta, r); err != nil {
 		return err
@@ -114,15 +114,15 @@ func (n *nameNodeImpl) put(
 	}
 
 	index := 0
-	for i := range metadata.NextNodes {
-		if metadata.NextNodes[i].Key > key {
+	for i := range currentMeta.NextNodes {
+		if currentMeta.NextNodes[i].Key > key {
 			break
 		}
 		index++
 	}
-	metadata.NextNodes = append(metadata.NextNodes, &datanode.NextRoute{})
-	copy(metadata.NextNodes[index+1:], metadata.NextNodes[index:])
-	metadata.NextNodes[index] = &datanode.NextRoute{Key: key, NodeId: metadataId}
+	currentMeta.NextNodes = append(currentMeta.NextNodes, &metadata.NextRoute{})
+	copy(currentMeta.NextNodes[index+1:], currentMeta.NextNodes[index:])
+	currentMeta.NextNodes[index] = &metadata.NextRoute{Key: key, NodeId: metadataId}
 
-	return n.pool.PutMetadata(ctx, id, metadata)
+	return n.pool.PutMetadata(ctx, id, currentMeta)
 }

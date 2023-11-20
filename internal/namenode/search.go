@@ -7,33 +7,37 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 	"github.com/qwp0905/go-object-storage/pkg/list"
 )
 
-func (n *nameNodeImpl) get(ctx context.Context, key, id, current string) (*datanode.Metadata, error) {
+func (n *nameNodeImpl) get(ctx context.Context, key, id, current string) (*metadata.Metadata, error) {
 	locker := n.lockerPool.Get(current)
 	if err := locker.RLock(ctx); err != nil {
 		return nil, err
 	}
-	defer locker.RUnlock(ctx) //TODO 다르게 처리해보자 지금은 그냥 중첩 락이야...
+	// defer locker.RUnlock(ctx) //TODO 다르게 처리해보자 지금은 그냥 중첩 락이야...
 
-	metadata, err := n.pool.GetMetadata(ctx, id, current)
+	currentMeta, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
+		defer locker.RUnlock(ctx)
 		return nil, err
 	}
 
-	if key == metadata.Key && metadata.FileExists() {
-		return metadata, nil
+	if key == currentMeta.Key && currentMeta.FileExists() {
+		defer locker.RUnlock(ctx)
+		return currentMeta, nil
 	}
 
-	for _, next := range metadata.NextNodes {
-		if !strings.HasPrefix(key, next.Key) {
-			continue
+	if next := currentMeta.FindKey(key); next != nil {
+		if err := locker.RUnlock(ctx); err != nil {
+			return nil, err
 		}
+
 		return n.get(ctx, key, next.NodeId, next.Key)
 	}
 
+	defer locker.RUnlock(ctx)
 	return nil, fiber.ErrNotFound
 }
 
@@ -43,9 +47,9 @@ func (n *nameNodeImpl) scan(
 	prefix, delimiter, after string,
 	limit int,
 	id, current string,
-) (list.Set[string], []*datanode.Metadata, error) {
+) (list.Set[string], []*metadata.Metadata, error) {
 	prefixes := make(list.Set[string])
-	list := make([]*datanode.Metadata, 0)
+	list := make([]*metadata.Metadata, 0)
 	if limit <= 0 {
 		return prefixes, list, nil
 	}
@@ -56,7 +60,7 @@ func (n *nameNodeImpl) scan(
 	}
 	defer locker.RUnlock(ctx)
 
-	metadata, err := n.pool.GetMetadata(ctx, id, current)
+	currentMeta, err := n.pool.GetMetadata(ctx, id, current)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -65,18 +69,18 @@ func (n *nameNodeImpl) scan(
 	if delimiter != "" {
 		rt += fmt.Sprintf("[^%s]*", delimiter)
 	}
-	if metadata.Key > after {
-		if matched := regexp.MustCompile(rt).FindString(metadata.Key); matched != "" {
-			if metadata.FileExists() && (delimiter == "" || matched == metadata.Key) {
-				list = append(list, metadata)
+	if currentMeta.Key > after {
+		if matched := regexp.MustCompile(rt).FindString(currentMeta.Key); matched != "" {
+			if currentMeta.FileExists() && (delimiter == "" || matched == currentMeta.Key) {
+				list = append(list, currentMeta)
 			}
-			if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(metadata.Key) {
+			if delimiter != "" && regexp.MustCompile(rt+delimiter).MatchString(currentMeta.Key) {
 				prefixes.Add(matched + delimiter)
 			}
 		}
 	}
 
-	for _, next := range metadata.NextNodes {
+	for _, next := range currentMeta.NextNodes {
 		if !(strings.HasPrefix(prefix, next.Key) || strings.HasPrefix(next.Key, prefix)) {
 			continue
 		}

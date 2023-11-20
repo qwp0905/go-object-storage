@@ -7,11 +7,11 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
-	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 	"github.com/valyala/fasthttp"
 )
 
-func (p *nodePoolImpl) GetMetadata(ctx context.Context, id, key string) (*datanode.Metadata, error) {
+func (p *nodePoolImpl) GetMetadata(ctx context.Context, id, key string) (*metadata.Metadata, error) {
 	host, err := p.GetNodeHost(ctx, id)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (p *nodePoolImpl) GetMetadata(ctx context.Context, id, key string) (*datano
 		return nil, errors.WithStack(errors.Errorf("%s", string(res.Body())))
 	}
 
-	data := new(datanode.Metadata)
+	data := new(metadata.Metadata)
 	if err := json.NewDecoder(res.BodyStream()).Decode(data); err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (p *nodePoolImpl) GetMetadata(ctx context.Context, id, key string) (*datano
 	return data, nil
 }
 
-func (p *nodePoolImpl) PutMetadata(ctx context.Context, id string, metadata *datanode.Metadata) error {
+func (p *nodePoolImpl) PutMetadata(ctx context.Context, id string, metadata *metadata.Metadata) error {
 	host, err := p.GetNodeHost(ctx, id)
 	if err != nil {
 		return err

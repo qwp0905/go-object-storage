@@ -7,15 +7,15 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/qwp0905/go-object-storage/internal/datanode"
 	"github.com/qwp0905/go-object-storage/internal/locker"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 	"github.com/qwp0905/go-object-storage/internal/nodepool"
 	"github.com/redis/go-redis/v9"
 )
 
 type NameNode interface {
-	HeadObject(ctx context.Context, key string) (*datanode.Metadata, error)
-	GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error)
+	HeadObject(ctx context.Context, key string) (*metadata.Metadata, error)
+	GetObject(ctx context.Context, key string) (*metadata.Metadata, io.Reader, error)
 	ListObject(ctx context.Context, prefix, delimiter, after string, limit int) (*ListObjectResult, error)
 	PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error
 	DeleteObject(ctx context.Context, key string) error
@@ -34,7 +34,7 @@ func New(pool nodepool.NodePool, rc *redis.Client) (*nameNodeImpl, error) {
 	return &nameNodeImpl{pool: pool, lockerPool: lp}, nil
 }
 
-func (n *nameNodeImpl) HeadObject(ctx context.Context, key string) (*datanode.Metadata, error) {
+func (n *nameNodeImpl) HeadObject(ctx context.Context, key string) (*metadata.Metadata, error) {
 	rootId, err := n.pool.GetRootId(ctx)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (n *nameNodeImpl) HeadObject(ctx context.Context, key string) (*datanode.Me
 	return metadata, nil
 }
 
-func (n *nameNodeImpl) GetObject(ctx context.Context, key string) (*datanode.Metadata, io.Reader, error) {
+func (n *nameNodeImpl) GetObject(ctx context.Context, key string) (*metadata.Metadata, io.Reader, error) {
 	metadata, err := n.HeadObject(ctx, key)
 	if err != nil {
 		return nil, nil, err

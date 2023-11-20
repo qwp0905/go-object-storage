@@ -10,7 +10,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
-	"github.com/qwp0905/go-object-storage/internal/datanode"
+	"github.com/qwp0905/go-object-storage/internal/metadata"
 	"github.com/valyala/fasthttp"
 )
 
@@ -25,8 +25,8 @@ func counter() func(int) int {
 	}
 }
 
-func (p *nodePoolImpl) PutDirect(ctx context.Context, metadata *datanode.Metadata, r io.Reader) (*datanode.Metadata, error) {
-	host, err := p.GetNodeHost(ctx, metadata.NodeId)
+func (p *nodePoolImpl) PutDirect(ctx context.Context, meta *metadata.Metadata, r io.Reader) (*metadata.Metadata, error) {
+	host, err := p.GetNodeHost(ctx, meta.NodeId)
 	if err != nil {
 		return nil, err
 	}
@@ -36,8 +36,8 @@ func (p *nodePoolImpl) PutDirect(ctx context.Context, metadata *datanode.Metadat
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(fasthttp.MethodPut)
-	req.SetRequestURI(getDataHost(host, metadata.Source))
-	req.SetBodyStream(r, int(metadata.Size))
+	req.SetRequestURI(getDataHost(host, meta.Source))
+	req.SetBodyStream(r, int(meta.Size))
 
 	if err := p.client.Do(req, res); err != nil {
 		return nil, errors.WithStack(err)
@@ -49,7 +49,7 @@ func (p *nodePoolImpl) PutDirect(ctx context.Context, metadata *datanode.Metadat
 		return nil, errors.WithStack(errors.Errorf("%s", string(res.Body())))
 	}
 
-	data := new(datanode.Metadata)
+	data := new(metadata.Metadata)
 	if err := json.NewDecoder(bytes.NewReader(res.Body())).Decode(data); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -57,7 +57,7 @@ func (p *nodePoolImpl) PutDirect(ctx context.Context, metadata *datanode.Metadat
 	return data, nil
 }
 
-func (p *nodePoolImpl) GetDirect(ctx context.Context, metadata *datanode.Metadata) (io.Reader, error) {
+func (p *nodePoolImpl) GetDirect(ctx context.Context, metadata *metadata.Metadata) (io.Reader, error) {
 	host, err := p.GetNodeHost(ctx, metadata.NodeId)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (p *nodePoolImpl) GetDirect(ctx context.Context, metadata *datanode.Metadat
 	return res.BodyStream(), nil
 }
 
-func (p *nodePoolImpl) DeleteDirect(ctx context.Context, metadata *datanode.Metadata) error {
+func (p *nodePoolImpl) DeleteDirect(ctx context.Context, metadata *metadata.Metadata) error {
 	host, err := p.GetNodeHost(ctx, metadata.NodeId)
 	if err != nil {
 		return err
