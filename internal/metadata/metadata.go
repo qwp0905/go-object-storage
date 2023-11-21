@@ -41,8 +41,7 @@ func (m *Metadata) FindPrefix(key string) int {
 
 func (m *Metadata) FindMatched(key string) (int, string) {
 	for i := range m.NextNodes {
-		matched := compare(m.NextNodes[i].Key, key)
-		if len(matched) > len(m.Key) {
+		if matched := compare(m.NextNodes[i].Key, key); len(matched) > len(m.Key) {
 			return i, matched
 		}
 	}

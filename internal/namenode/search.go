@@ -67,7 +67,7 @@ func (n *nameNodeImpl) scan(
 
 	rt := fmt.Sprintf("^%s", prefix)
 	if delimiter != "" {
-		rt += fmt.Sprintf("[^%s]*(%s)?", delimiter, delimiter)
+		rt += fmt.Sprintf("[^%s]+(%s)?", delimiter, delimiter)
 	}
 	if matched := regexp.MustCompile(rt).FindString(currentMeta.Key); matched != "" {
 		if currentMeta.FileExists() && matched == currentMeta.Key && after < currentMeta.Key {
