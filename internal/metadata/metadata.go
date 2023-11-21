@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -103,4 +105,13 @@ func compare(a, b string) string {
 		out += a[i : i+1]
 	}
 	return out
+}
+
+func (m *Metadata) IsMatch(prefix, delimiter string) string {
+	t := "^" + prefix
+	if delimiter != "" {
+		t += fmt.Sprintf("[^%s]*(%s)?", delimiter, delimiter)
+	}
+
+	return regexp.MustCompile(t).FindString(m.Key)
 }

@@ -23,6 +23,8 @@ type NameNode interface {
 type nameNodeImpl struct {
 	pool       nodepool.NodePool
 	lockerPool locker.LockerPool
+	rootKey    string
+	rootId     string
 }
 
 func New(pool nodepool.NodePool, rc *redis.Client) (*nameNodeImpl, error) {
@@ -30,16 +32,20 @@ func New(pool nodepool.NodePool, rc *redis.Client) (*nameNodeImpl, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &nameNodeImpl{pool: pool, lockerPool: lp}, nil
+	return &nameNodeImpl{
+		pool:       pool,
+		lockerPool: lp,
+		rootKey:    "/",
+	}, nil
 }
 
 func (n *nameNodeImpl) HeadObject(ctx context.Context, key string) (*metadata.Metadata, error) {
-	rootId, err := n.pool.GetRootId(ctx)
+	rootId, err := n.getRootId(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	metadata, err := n.get(ctx, key, rootId, n.pool.GetRootKey())
+	metadata, err := n.get(ctx, key, rootId, n.rootKey)
 	if err != nil {
 		return nil, err
 	}
@@ -78,12 +84,12 @@ func (n *nameNodeImpl) ListObject(
 	prefix, delimiter, after string,
 	limit int,
 ) (*ListObjectResult, error) {
-	rootId, err := n.pool.GetRootId(ctx)
+	rootId, err := n.getRootId(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	p, l, err := n.scan(ctx, prefix, delimiter, after, limit, rootId, n.pool.GetRootKey())
+	p, l, err := n.scan(ctx, prefix, delimiter, after, limit, rootId, n.rootKey)
 	if err != nil {
 		return nil, err
 	}
@@ -102,12 +108,12 @@ func (n *nameNodeImpl) ListObject(
 }
 
 func (n *nameNodeImpl) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
-	rootId, err := n.pool.GetRootId(ctx)
+	rootId, err := n.getRootId(ctx)
 	if err != nil {
 		return err
 	}
 
-	return n.put(ctx, key, rootId, n.pool.GetRootKey(), contentType, size, r)
+	return n.put(ctx, key, rootId, n.rootKey, contentType, size, r)
 }
 
 func (n *nameNodeImpl) DeleteObject(ctx context.Context, key string) error {
@@ -119,12 +125,12 @@ func (n *nameNodeImpl) DeleteObject(ctx context.Context, key string) error {
 		return err
 	}
 
-	rootId, err := n.pool.GetRootId(ctx)
+	rootId, err := n.getRootId(ctx)
 	if err != nil {
 		return err
 	}
 
-	if _, err := n.delete(ctx, key, rootId, n.pool.GetRootKey()); err != nil {
+	if _, err := n.delete(ctx, key, rootId, n.rootKey); err != nil {
 		return err
 	}
 

@@ -41,7 +41,7 @@ func (n *nameNodeImpl) get(ctx context.Context, key, id, current string) (*metad
 	return nil, fiber.ErrNotFound
 }
 
-// TODO 개선 필요
+// TODO 쬐끔 개선된 듯...
 func (n *nameNodeImpl) scan(
 	ctx context.Context,
 	prefix, delimiter, after string,
@@ -52,6 +52,17 @@ func (n *nameNodeImpl) scan(
 	list := make([]*metadata.Metadata, 0)
 	if limit <= 0 {
 		return prefixes, list, nil
+	}
+
+	reg := fmt.Sprintf("^%s", prefix)
+	if delimiter != "" {
+		reg += fmt.Sprintf("[^%s]*", delimiter)
+		if isDir := regexp.MustCompile(reg + delimiter).FindString(current); isDir != "" {
+			if after < current {
+				prefixes.Add(isDir)
+			}
+			return prefixes, list, nil
+		}
 	}
 
 	locker := n.lockerPool.Get(current)
@@ -65,19 +76,9 @@ func (n *nameNodeImpl) scan(
 		return nil, nil, err
 	}
 
-	rt := fmt.Sprintf("^%s", prefix)
-	if delimiter != "" {
-		rt += fmt.Sprintf("[^%s]+(%s)?", delimiter, delimiter)
-	}
-	if matched := regexp.MustCompile(rt).FindString(currentMeta.Key); matched != "" {
-		if currentMeta.FileExists() && matched == currentMeta.Key && after < currentMeta.Key {
-			list = append(list, currentMeta)
-		}
-
-		if delimiter != "" && strings.HasSuffix(matched, delimiter) {
-			prefixes.Add(matched)
-			return prefixes, list, nil
-		}
+	matched := regexp.MustCompile(reg).FindString(current)
+	if matched != "" && matched == current && currentMeta.FileExists() && current > after {
+		list = append(list, currentMeta)
 	}
 
 	for _, next := range currentMeta.NextNodes {
@@ -85,15 +86,15 @@ func (n *nameNodeImpl) scan(
 			return n.scan(ctx, prefix, delimiter, after, limit, next.NodeId, next.Key)
 		}
 
-		if !(strings.HasPrefix(next.Key, prefix)) && after > next.Key && !strings.HasPrefix(after, next.Key) {
+		if !strings.HasPrefix(next.Key, prefix) {
 			continue
 		}
 
-		s, l, err := n.scan(ctx, prefix, delimiter, after, limit-len(list), next.NodeId, next.Key)
+		p, l, err := n.scan(ctx, prefix, delimiter, after, limit-len(list), next.NodeId, next.Key)
 		if err != nil {
 			return nil, nil, err
 		}
-		prefixes.Union(s)
+		prefixes.Union(p)
 		for _, v := range l {
 			if len(list) == limit {
 				return prefixes, list, nil

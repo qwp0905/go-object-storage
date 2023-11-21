@@ -63,7 +63,7 @@ func (n *nameNodeImpl) delete(ctx context.Context, key, id, current string) (*me
 
 	if currentMeta.Len() == 1 &&
 		!currentMeta.FileExists() &&
-		currentMeta.Key != n.pool.GetRootKey() {
+		currentMeta.Key != n.rootKey {
 		if err := n.pool.DeleteMetadata(ctx, id, currentMeta.Key); err != nil {
 			return nil, err
 		}
