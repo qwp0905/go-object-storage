@@ -63,6 +63,8 @@ func (n *nameNodeImpl) scan(
 			}
 			return prefixes, list, nil
 		}
+	} else {
+		reg += ".*"
 	}
 
 	locker := n.lockerPool.Get(current)
