@@ -11,7 +11,7 @@ type pageTable struct {
 	noCopy    nocopy.NoCopy
 	accessed  *list.DoubleLinked[string]
 	pages     map[string]*page
-	locker    *sync.RWMutex
+	mu        *sync.RWMutex
 	allocated int
 }
 
@@ -19,14 +19,14 @@ func newPageTable() *pageTable {
 	return &pageTable{
 		accessed:  list.NewDoubleLinked[string](),
 		pages:     make(map[string]*page),
-		locker:    new(sync.RWMutex),
+		mu:        new(sync.RWMutex),
 		allocated: 0,
 	}
 }
 
 func (t *pageTable) get(key string) (*page, bool) {
-	t.locker.Lock()
-	defer t.locker.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	page, ok := t.pages[key]
 	if ok {
 		t.accessed.MoveBack(page.lastAccess)
@@ -35,8 +35,8 @@ func (t *pageTable) get(key string) (*page, bool) {
 }
 
 func (t *pageTable) allocate(p *page) {
-	t.locker.Lock()
-	defer t.locker.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if page, ok := t.pages[p.key]; ok {
 		t.allocated -= page.getSize()
 		t.accessed.Remove(page.lastAccess)
@@ -49,8 +49,8 @@ func (t *pageTable) allocate(p *page) {
 }
 
 func (t *pageTable) deallocate(key string) {
-	t.locker.Lock()
-	defer t.locker.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	page, ok := t.pages[key]
 	if !ok {
 		return
@@ -62,8 +62,8 @@ func (t *pageTable) deallocate(key string) {
 }
 
 func (t *pageTable) toList() []*page {
-	t.locker.RLock()
-	defer t.locker.RUnlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	out := make([]*page, 0)
 	e := t.accessed.Last()
 	for e != nil {
@@ -74,8 +74,8 @@ func (t *pageTable) toList() []*page {
 }
 
 func (t *pageTable) oldest() *page {
-	t.locker.RLock()
-	defer t.locker.RUnlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	e := t.accessed.First()
 	if e == nil {
 		return nil

@@ -13,7 +13,7 @@ import (
 type BloomFilter struct {
 	bit           []bool
 	hashFunctions []func(string) (int, error)
-	lock          *sync.RWMutex
+	mu            *sync.RWMutex
 }
 
 func createHashFunction(size int) func(string) (int, error) {
@@ -41,13 +41,13 @@ func New(size, hash int) *BloomFilter {
 	return &BloomFilter{
 		bit:           make([]bool, size),
 		hashFunctions: hashFunctions,
-		lock:          new(sync.RWMutex),
+		mu:            new(sync.RWMutex),
 	}
 }
 
 func (b *BloomFilter) Get(key string) (bool, error) {
-	b.lock.RLock()
-	defer b.lock.RUnlock()
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 
 	for _, f := range b.hashFunctions {
 		n, err := f(key)
@@ -63,8 +63,8 @@ func (b *BloomFilter) Get(key string) (bool, error) {
 }
 
 func (b *BloomFilter) Set(key string) error {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
 	for _, f := range b.hashFunctions {
 		n, err := f(key)
