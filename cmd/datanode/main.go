@@ -64,7 +64,7 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
 	done := make(chan struct{}, 1)
-	go bp.Graceful(sigs, done)
+	go bp.BeforeDestroy(sigs, done)
 
 	if err := app.Listen(addr); err != nil {
 		panic(err)

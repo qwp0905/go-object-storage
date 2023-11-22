@@ -22,7 +22,7 @@ type BufferPool interface {
 	Get(key string) (io.Reader, error)
 	Put(key string, size int, r io.Reader) error
 	Delete(key string) error
-	Graceful(sig <-chan os.Signal, done chan struct{})
+	BeforeDestroy(sig <-chan os.Signal, done chan struct{})
 }
 
 type bufferPoolImpl struct {
@@ -99,7 +99,7 @@ func (p *bufferPoolImpl) Delete(key string) error {
 	return p.fs.RemoveFile(key)
 }
 
-func (p *bufferPoolImpl) Graceful(sig <-chan os.Signal, done chan struct{}) {
+func (p *bufferPoolImpl) BeforeDestroy(sig <-chan os.Signal, done chan struct{}) {
 	defer close(done)
 	<-sig
 	if err := p.flushAll(); err != nil {
