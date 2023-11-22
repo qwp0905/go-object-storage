@@ -18,8 +18,9 @@ type BloomFilter struct {
 
 func createHashFunction(size int) func(string) (int, error) {
 	base := uuid.Must(uuid.NewRandom()).String()
+	h := sha256.New()
 	return func(s string) (int, error) {
-		h := sha256.New()
+		defer h.Reset()
 		if _, err := h.Write([]byte(s + base)); err != nil {
 			return 0, errors.WithStack(err)
 		}
