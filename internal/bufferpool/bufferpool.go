@@ -2,6 +2,7 @@ package bufferpool
 
 import (
 	"io"
+	"os"
 
 	"github.com/qwp0905/go-object-storage/internal/filesystem"
 	"github.com/qwp0905/go-object-storage/pkg/logger"
@@ -21,7 +22,7 @@ type BufferPool interface {
 	Get(key string) (io.Reader, error)
 	Put(key string, size int, r io.Reader) error
 	Delete(key string) error
-	FlushAll() error
+	Graceful(sig <-chan os.Signal, done chan struct{})
 }
 
 type bufferPoolImpl struct {
@@ -98,7 +99,16 @@ func (p *bufferPoolImpl) Delete(key string) error {
 	return p.fs.RemoveFile(key)
 }
 
-func (p *bufferPoolImpl) FlushAll() error {
+func (p *bufferPoolImpl) Graceful(sig <-chan os.Signal, done chan struct{}) {
+	defer close(done)
+	<-sig
+	if err := p.flushAll(); err != nil {
+		panic(err)
+	}
+	logger.Info("data all flushed")
+}
+
+func (p *bufferPoolImpl) flushAll() error {
 	for _, page := range p.table.toList() {
 		if !page.isDirty() {
 			continue
