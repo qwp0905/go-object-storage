@@ -57,9 +57,9 @@ func (n *nameNodeImpl) scan(
 	reg := fmt.Sprintf("^%s", prefix)
 	if delimiter != "" {
 		reg += fmt.Sprintf("[^%s]*", delimiter)
-		if isDir := regexp.MustCompile(reg + delimiter).FindString(current); isDir != "" {
+		if dir := regexp.MustCompile(reg + delimiter).FindString(current); dir != "" {
 			if after < current {
-				prefixes.Add(isDir)
+				prefixes.Add(dir)
 			}
 			return prefixes, list, nil
 		}
