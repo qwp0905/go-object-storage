@@ -22,7 +22,7 @@ type LockerPoolImpl struct {
 	lockers  map[string]*lockerPoolItem
 	accessed *list.DoubleLinked[string]
 	maxSize  int
-	m        *sync.Mutex
+	mu       *sync.Mutex
 }
 
 type lockerPoolItem struct {
@@ -55,13 +55,13 @@ func NewPool(rc *redis.Client, timeout time.Duration) (LockerPool, error) {
 		lockers:  make(map[string]*lockerPoolItem),
 		accessed: list.NewDoubleLinked[string](),
 		maxSize:  500,
-		m:        new(sync.Mutex),
+		mu:       new(sync.Mutex),
 	}, nil
 }
 
 func (p *LockerPoolImpl) Get(key string) RWMutex {
-	p.m.Lock()
-	defer p.m.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	item, ok := p.lockers[key]
 	if ok {
