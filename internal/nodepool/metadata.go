@@ -40,6 +40,7 @@ func (p *nodePoolImpl) GetMetadata(ctx context.Context, id, key string) (*metada
 	if err := json.NewDecoder(res.BodyStream()).Decode(data); err != nil {
 		return nil, err
 	}
+	p.cache.Set(key, id)
 
 	return data, nil
 }
@@ -74,6 +75,7 @@ func (p *nodePoolImpl) PutMetadata(ctx context.Context, id string, metadata *met
 	} else if res.StatusCode() >= 400 {
 		return errors.WithStack(errors.Errorf("%s", string(res.Body())))
 	}
+	p.cache.Set(metadata.Key, id)
 
 	return nil
 }
@@ -102,6 +104,7 @@ func (p *nodePoolImpl) DeleteMetadata(ctx context.Context, id, key string) error
 	} else if res.StatusCode() >= 400 {
 		return errors.WithStack(errors.Errorf("%s", string(res.Body())))
 	}
+	p.cache.Del(key)
 
 	return nil
 }

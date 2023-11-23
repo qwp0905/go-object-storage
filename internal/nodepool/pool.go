@@ -13,6 +13,7 @@ import (
 )
 
 type NodePool interface {
+	FindInCache(key string) (string, string)
 	GetNodeHost(ctx context.Context, id string) (string, error)
 	GetNodeIds(ctx context.Context) ([]string, error)
 	AcquireNode(ctx context.Context) (string, error)
@@ -29,6 +30,7 @@ type nodePoolImpl struct {
 	client  *fasthttp.Client
 	counter func(int) int
 	rc      *redis.Client
+	cache   Cache
 }
 
 type NodeInfo struct {
@@ -40,6 +42,7 @@ func NewNodePool(rc *redis.Client) NodePool {
 		client:  &fasthttp.Client{MaxConnsPerHost: 1024},
 		counter: counter(),
 		rc:      rc,
+		cache:   NewCache(100),
 	}
 }
 
@@ -75,4 +78,14 @@ func (p *nodePoolImpl) AcquireNode(ctx context.Context) (string, error) {
 	}
 
 	return datanode.IdFromKey(ids[p.counter(len(ids))]), nil
+}
+
+func (p *nodePoolImpl) FindInCache(key string) (string, string) {
+	for i := 0; i < len(key); i++ {
+		if id := p.cache.Get(key[:len(key)-i]); id != "" {
+			return id, key[:len(key)-i]
+		}
+	}
+
+	return "", ""
 }

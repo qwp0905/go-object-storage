@@ -40,12 +40,12 @@ func New(pool nodepool.NodePool, rc *redis.Client) (*nameNodeImpl, error) {
 }
 
 func (n *nameNodeImpl) HeadObject(ctx context.Context, key string) (*metadata.Metadata, error) {
-	rootId, err := n.getRootId(ctx)
+	id, start, err := n.findEntry(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
-	metadata, err := n.get(ctx, key, rootId, n.rootKey)
+	metadata, err := n.get(ctx, key, id, start)
 	if err != nil {
 		return nil, err
 	}
@@ -84,12 +84,12 @@ func (n *nameNodeImpl) ListObject(
 	prefix, delimiter, after string,
 	limit int,
 ) (*ListObjectResult, error) {
-	rootId, err := n.getRootId(ctx)
+	id, start, err := n.findEntry(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	p, l, err := n.scan(ctx, prefix, delimiter, after, limit, rootId, n.rootKey)
+	p, l, err := n.scan(ctx, prefix, delimiter, after, limit, id, start)
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +108,12 @@ func (n *nameNodeImpl) ListObject(
 }
 
 func (n *nameNodeImpl) PutObject(ctx context.Context, key, contentType string, size int, r io.Reader) error {
-	rootId, err := n.getRootId(ctx)
+	id, start, err := n.findEntry(ctx, key)
 	if err != nil {
 		return err
 	}
 
-	return n.put(ctx, key, rootId, n.rootKey, contentType, size, r)
+	return n.put(ctx, key, id, start, contentType, size, r)
 }
 
 func (n *nameNodeImpl) DeleteObject(ctx context.Context, key string) error {
@@ -125,12 +125,12 @@ func (n *nameNodeImpl) DeleteObject(ctx context.Context, key string) error {
 		return err
 	}
 
-	rootId, err := n.getRootId(ctx)
+	id, start, err := n.findEntry(ctx, key)
 	if err != nil {
 		return err
 	}
 
-	if _, err := n.delete(ctx, key, rootId, n.rootKey); err != nil {
+	if _, err := n.delete(ctx, key, id, start); err != nil {
 		return err
 	}
 

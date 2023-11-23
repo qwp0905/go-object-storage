@@ -7,6 +7,20 @@ import (
 	"github.com/qwp0905/go-object-storage/internal/metadata"
 )
 
+func (n *nameNodeImpl) findEntry(ctx context.Context, key string) (string, string, error) {
+	id, start := n.pool.FindInCache(key)
+	if id != "" {
+		return id, start, nil
+	}
+
+	rootId, err := n.getRootId(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	return rootId, n.rootKey, nil
+}
+
 func (n *nameNodeImpl) getRootId(ctx context.Context) (string, error) {
 	if n.rootId != "" {
 		return n.rootId, nil

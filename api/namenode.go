@@ -37,6 +37,7 @@ func (c *nameNode) getObject(ctx *fiber.Ctx) error {
 	}
 	ctx.Set("Content-Type", meta.Type)
 	ctx.Set("Last-Modified", meta.LastModified.Format(time.RFC1123))
+	ctx.Set("Key", meta.Key)
 
 	return ctx.SendStream(obj, int(meta.Size))
 }
@@ -87,6 +88,7 @@ func (c *nameNode) headObject(ctx *fiber.Ctx) error {
 	ctx.Set("Content-Type", meta.Type)
 	ctx.Set("Content-Length", strconv.Itoa(int(meta.Size)))
 	ctx.Set("Last-Modified", meta.LastModified.Format(time.RFC1123))
+	ctx.Set("Key", meta.Key)
 
 	return ctx.Status(fiber.StatusOK).Send(nil)
 }
