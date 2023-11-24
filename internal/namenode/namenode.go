@@ -125,12 +125,12 @@ func (n *nameNodeImpl) DeleteObject(ctx context.Context, key string) error {
 		return err
 	}
 
-	id, start, err := n.findEntry(ctx, key)
+	id, err := n.getRootId(ctx)
 	if err != nil {
 		return err
 	}
 
-	if _, err := n.delete(ctx, key, id, start); err != nil {
+	if _, err := n.delete(ctx, key, id, n.rootKey); err != nil {
 		return err
 	}
 
