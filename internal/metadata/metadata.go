@@ -78,13 +78,14 @@ func (m *Metadata) InsertNext(id, key string) {
 		}
 		index++
 	}
-	m.NextNodes = append(m.NextNodes, &NextRoute{})
+	m.NextNodes = append(m.NextNodes, nil)
 	copy(m.NextNodes[index+1:], m.NextNodes[index:])
 	m.NextNodes[index] = &NextRoute{NodeId: id, Key: key}
 }
 
 func (m *Metadata) RemoveNext(index int) {
-	m.NextNodes = append(m.NextNodes[:index], m.NextNodes[index+1:]...)
+	copy(m.NextNodes[index:], m.NextNodes[index+1:])
+	m.NextNodes = m.NextNodes[:len(m.NextNodes)-1]
 }
 
 func (m *Metadata) Len() int {

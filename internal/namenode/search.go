@@ -92,6 +92,10 @@ func (n *nameNodeImpl) scan(
 			continue
 		}
 
+		if !strings.HasPrefix(after, next.Key) && after > next.Key {
+			continue
+		}
+
 		p, l, err := n.scan(ctx, prefix, delimiter, after, limit-len(list), next.NodeId, next.Key)
 		if err != nil {
 			return nil, nil, err
