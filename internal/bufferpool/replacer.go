@@ -4,7 +4,7 @@ func (p *bufferPoolImpl) available() int {
 	return p.maxSize - p.table.allocated
 }
 
-func (p *bufferPoolImpl) isAvailable(size int) bool {
+func (p *bufferPoolImpl) isAllowed(size int) bool {
 	return p.maxSize/2 > size
 }
 

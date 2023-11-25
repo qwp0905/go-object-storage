@@ -19,7 +19,7 @@ type lockerPoolImpl struct {
 	noCopy   nocopy.NoCopy
 	rc       *redis.Client
 	timeout  time.Duration
-	lockers  map[string]*lockerPoolItem
+	pool     map[string]*lockerPoolItem
 	accessed *list.DoubleLinked[string]
 	maxSize  int
 	mu       *sync.Mutex
@@ -52,7 +52,7 @@ func NewPool(rc *redis.Client, timeout time.Duration) (LockerPool, error) {
 	return &lockerPoolImpl{
 		rc:       rc,
 		timeout:  timeout,
-		lockers:  make(map[string]*lockerPoolItem),
+		pool:     make(map[string]*lockerPoolItem),
 		accessed: list.NewDoubleLinked[string](),
 		maxSize:  500,
 		mu:       new(sync.Mutex),
@@ -63,24 +63,24 @@ func (p *lockerPoolImpl) Get(key string) RWMutex {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	item, ok := p.lockers[key]
+	item, ok := p.pool[key]
 	if ok {
 		p.accessed.MoveBack(item.lastAccess)
 		return item.locker
 	}
 
-	ni := &lockerPoolItem{
+	item = &lockerPoolItem{
 		lastAccess: list.NewDoubleLinkedElement[string](key),
 		locker:     &rwMutexImpl{rc: p.rc, timeout: p.timeout, key: key},
 	}
 
-	for len(p.lockers) >= p.maxSize {
+	for len(p.pool) >= p.maxSize {
 		l := p.accessed.First()
 		p.accessed.Remove(l)
-		delete(p.lockers, l.Value)
+		delete(p.pool, l.Value)
 	}
 
-	p.lockers[key] = ni
-	p.accessed.PushBack(ni.lastAccess)
-	return ni.locker
+	p.pool[key] = item
+	p.accessed.PushBack(item.lastAccess)
+	return item.locker
 }

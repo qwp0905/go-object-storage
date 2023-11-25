@@ -53,7 +53,7 @@ func (p *bufferPoolImpl) Get(key string) (io.Reader, error) {
 		return nil, err
 	}
 
-	if !p.isAvailable(size) {
+	if !p.isAllowed(size) {
 		return f, nil
 	}
 	defer f.Close()
@@ -72,7 +72,7 @@ func (p *bufferPoolImpl) Get(key string) (io.Reader, error) {
 }
 
 func (p *bufferPoolImpl) Put(key string, size int, r io.Reader) error {
-	if !p.isAvailable(size) {
+	if !p.isAllowed(size) {
 		if _, err := p.fs.WriteFile(key, r); err != nil {
 			return err
 		}
