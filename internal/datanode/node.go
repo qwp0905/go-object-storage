@@ -105,6 +105,7 @@ func ensureId(base string) (string, error) {
 		return "", errors.WithStack(err)
 	}
 	if err == nil {
+		logger.Infof("start with exists volume id %s", string(b))
 		return string(b), nil
 	}
 
@@ -119,6 +120,7 @@ func ensureId(base string) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
+	logger.Infof("start with new volume id %s", id)
 	return id, nil
 }
 

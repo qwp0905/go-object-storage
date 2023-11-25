@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync/atomic"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
@@ -13,13 +13,15 @@ import (
 )
 
 func counter() func(int) int {
-	i := int32(0)
+	i := 0
+	mu := new(sync.Mutex)
 	return func(max int) int {
-		atomic.AddInt32(&i, 1)
-		if i == int32(max) {
-			atomic.StoreInt32(&i, 0)
+		mu.Lock()
+		defer mu.Unlock()
+		if i == max {
+			i = 0
 		}
-		return int(i)
+		return i
 	}
 }
 
