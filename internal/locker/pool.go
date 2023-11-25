@@ -15,7 +15,7 @@ type LockerPool interface {
 	Get(key string) RWMutex
 }
 
-type LockerPoolImpl struct {
+type lockerPoolImpl struct {
 	noCopy   nocopy.NoCopy
 	rc       *redis.Client
 	timeout  time.Duration
@@ -49,7 +49,7 @@ func NewPool(rc *redis.Client, timeout time.Duration) (LockerPool, error) {
 			return nil, errors.WithStack(err)
 		}
 	}
-	return &LockerPoolImpl{
+	return &lockerPoolImpl{
 		rc:       rc,
 		timeout:  timeout,
 		lockers:  make(map[string]*lockerPoolItem),
@@ -59,7 +59,7 @@ func NewPool(rc *redis.Client, timeout time.Duration) (LockerPool, error) {
 	}, nil
 }
 
-func (p *LockerPoolImpl) Get(key string) RWMutex {
+func (p *lockerPoolImpl) Get(key string) RWMutex {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
