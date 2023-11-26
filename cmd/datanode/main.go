@@ -38,15 +38,14 @@ func main() {
 
 	logger.Config(logLevel)
 
-	fs := filesystem.NewFileSystem()
+	fs := filesystem.NewFileSystem(baseDir)
 	bp := bufferpool.NewBufferPool(int(float64(os.Getpagesize()*bufferpool.MB)*0.8), fs)
 	logger.Infof("%01f mb can be allocate", float64(os.Getpagesize())*0.8)
 
-	node, err := datanode.NewDataNode(&datanode.Config{
+	node, err := datanode.NewDataNode(baseDir, &datanode.Config{
 		RedisHost: redisHost,
 		RedisDB:   redisDB,
 		Host:      fmt.Sprintf("%s:%d", host, addr),
-		BaseDir:   baseDir,
 	}, bp)
 	if err != nil {
 		panic(err)
@@ -59,7 +58,12 @@ func main() {
 	metricsController := api.NewMetrics()
 
 	app = http.NewApplication()
-	app.Mount(dataController, metaController, healthController, metricsController)
+	app.Mount(
+		dataController,
+		metaController,
+		healthController,
+		metricsController,
+	)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)

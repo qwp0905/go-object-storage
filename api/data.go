@@ -43,7 +43,7 @@ func (c *data) put(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	return ctx.Status(fiber.StatusOK).SendString("OK")
+	return ctx.SendStatus(fiber.StatusOK)
 }
 
 func (c *data) delete(ctx *fiber.Ctx) error {
@@ -51,5 +51,5 @@ func (c *data) delete(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	return ctx.Status(fiber.StatusOK).SendString("OK")
+	return ctx.SendStatus(fiber.StatusOK)
 }

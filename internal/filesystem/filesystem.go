@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -14,14 +15,20 @@ type FileSystem interface {
 	RemoveFile(key string) error
 }
 
-type fileSystemImpl struct{}
+type fileSystemImpl struct {
+	basedir string
+}
 
-func NewFileSystem() FileSystem {
-	return &fileSystemImpl{}
+func NewFileSystem(basedir string) FileSystem {
+	return &fileSystemImpl{basedir: basedir}
+}
+
+func (f *fileSystemImpl) path(key string) string {
+	return fmt.Sprintf("%s/%s", f.basedir, key)
 }
 
 func (f *fileSystemImpl) ReadFile(key string) (*os.File, int, error) {
-	file, err := os.Open(key)
+	file, err := os.Open(f.path(key))
 	if os.IsNotExist(err) {
 		return nil, 0, errors.WithStack(fiber.ErrNotFound)
 	}
@@ -38,7 +45,7 @@ func (f *fileSystemImpl) ReadFile(key string) (*os.File, int, error) {
 }
 
 func (f *fileSystemImpl) WriteFile(key string, r io.Reader) (uint, error) {
-	file, err := os.Create(key)
+	file, err := os.Create(f.path(key))
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
@@ -53,7 +60,7 @@ func (f *fileSystemImpl) WriteFile(key string, r io.Reader) (uint, error) {
 }
 
 func (f *fileSystemImpl) RemoveFile(key string) error {
-	if err := os.Remove(key); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(f.path(key)); err != nil && !os.IsNotExist(err) {
 		return errors.WithStack(err)
 	}
 	return nil

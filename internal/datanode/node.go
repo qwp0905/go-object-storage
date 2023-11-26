@@ -47,18 +47,17 @@ type dataNodeImpl struct {
 
 type Config struct {
 	Host      string
-	BaseDir   string
 	RedisHost string
 	RedisDB   int
 }
 
-func NewDataNode(cfg *Config, bp bufferpool.BufferPool) (DataNode, error) {
-	id, err := ensureId(cfg.BaseDir)
+func NewDataNode(basedir string, cfg *Config, bp bufferpool.BufferPool) (DataNode, error) {
+	id, err := ensureId(basedir)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := ensureDirs(cfg.BaseDir); err != nil {
+	if err := ensureDirs(basedir); err != nil {
 		return nil, err
 	}
 
@@ -72,14 +71,13 @@ func NewDataNode(cfg *Config, bp bufferpool.BufferPool) (DataNode, error) {
 
 func (d *dataNodeImpl) getMetaKey(key string) string {
 	return fmt.Sprintf(
-		"%s/meta/%s",
-		d.config.BaseDir,
+		"meta/%s",
 		base64.StdEncoding.EncodeToString([]byte(key)),
 	)
 }
 
 func (d *dataNodeImpl) getDataKey(key string) string {
-	return fmt.Sprintf("%s/object/%s", d.config.BaseDir, key)
+	return fmt.Sprintf("object/%s", key)
 }
 
 func generateKey() string {
