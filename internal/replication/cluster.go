@@ -2,6 +2,7 @@ package replication
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -36,7 +37,6 @@ type clusterImpl struct {
 	heartbeat chan struct{}
 	state     string
 	hosts     []string
-	timeout   time.Duration
 }
 
 func NewCluster() Cluster {
@@ -60,17 +60,15 @@ func (c *clusterImpl) Voting(state *VoteState) error {
 }
 
 func (c *clusterImpl) StartReplication() {
-	t := time.NewTicker(c.timeout)
 	for {
 		select {
-		case <-t.C:
+		case <-time.After(time.Duration(rand.Intn(150)+150) * time.Millisecond):
 			if err := c.upgrade(); err != nil {
 				logger.Warnf("%+v", err)
 				continue
 			}
 			return
 		case <-c.heartbeat:
-			t.Reset(c.timeout)
 			continue
 		}
 	}
@@ -98,7 +96,7 @@ func (c *clusterImpl) upgrade() error {
 		}
 	}()
 
-	allowed := 0
+	allowed := 1
 	for range done {
 		if allowed = allowed + 1; allowed < c.Quorum() {
 			continue
@@ -139,7 +137,7 @@ func (c *clusterImpl) requestVote(host string) error {
 }
 
 func (c *clusterImpl) sendHeartbeat() {
-	t := time.NewTicker(time.Second * 5)
+	t := time.NewTicker(time.Millisecond * 100)
 	for range t.C {
 		if err := c.replicateLogs(); err != nil {
 			logger.Warnf("%+v", err)
@@ -168,9 +166,9 @@ func (c *clusterImpl) replicateLogs() error {
 		}
 	}()
 
-	i := 0
+	allowed := 1
 	for range done {
-		if i = i + 1; i < c.Quorum() {
+		if allowed = allowed + 1; allowed < c.Quorum() {
 			continue
 		}
 		return c.log.Commit(c.log.LastIndex())
