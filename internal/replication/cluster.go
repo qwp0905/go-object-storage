@@ -26,6 +26,11 @@ type Cluster interface {
 	Quorum() int
 }
 
+type Heartbeat struct {
+	Term uint64 `json:"term"`
+	Log  *Log   `json:"log,omitempty"`
+}
+
 type VoteState struct {
 	Term      uint64 `json:"term"`
 	LastIndex uint64 `json:"last_index"`
